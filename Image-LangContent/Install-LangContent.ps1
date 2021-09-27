@@ -3,16 +3,33 @@ param (
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
-    $ContentRoot = 'https://dsstorinfgen.blob.core.windows.net/aibcontent/',
+    $ContentRoot = 'https://dsstorinfgen.blob.core.windows.net/imagecontent/',
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string[]]
-    $ContentFiles = 'LangContent-en-gb'
+    $ContentFiles = 'LangContent-en-gb',
+
+    [Parameter(Mandatory=$false, HelpMessage='The local (ProgramData) folder for downloads and logs.')]
+    [ValidateNotNullOrEmpty()]
+    [string]
+    $CacheFolder = "$env:ProgramData\Ensono"
 )
 
+# Check to see if the local cache directory exists
+If (!(Test-Path -Path $CacheFolder)) {
+    # Create the local cache directory
+    New-Item -ItemType Directory $CacheFolder -Force -Confirm:$false
+}
+
+# Check to see if the cache logs directory exists
+If (!(Test-Path -Path "$CacheFolder\Logs")) {
+    # Create the local cache directory
+    New-Item -ItemType Directory "$CacheFolder\Logs" -Force -Confirm:$false
+}
+
 # Start transcript and keep history
-Start-Transcript -Path "$($env:TEMP)\Install-LangContent.log" -Append
+Start-Transcript -Path "$CacheFolder\Logs\Install-LangContent.log" -Append
 
 # Disable language pack cleanup task
 Write-Host "Disabling language pack cleanup task"
@@ -23,16 +40,16 @@ foreach ($File in $ContentFiles) {
 
     # Download file
     Write-Host "Downloading file: ${File}.zip"
-    Invoke-WebRequest -Uri "${ContentRoot}${File}.zip" -OutFile "$($env:TEMP)\${File}.zip"
-    Write-Host "File downloaded to: $($env:TEMP)\${File}.zip"
+    Invoke-WebRequest -Uri "${ContentRoot}${File}.zip" -OutFile "${CacheFolder}\${File}.zip"
+    Write-Host "File downloaded to: ${CacheFolder}\${File}.zip"
 
     # Extract file
     Write-Host "Extracting file: ${File}.zip"
-    Expand-Archive -Path "$($env:TEMP)\${File}.zip" -DestinationPath "$($env:TEMP)"
-    Write-Host "File extracted to: $($env:TEMP)\$File"
+    Expand-Archive -Path "${CacheFolder}\${File}.zip" -DestinationPath "$CacheFolder"
+    Write-Host "File extracted to: ${CacheFolder}\${File}.zip"
 
     # Attempt to install LXPs from any sub-directories
-    $LXPDirs = Get-ChildItem -Path "$($env:TEMP)\$File" -Directory
+    $LXPDirs = Get-ChildItem -Path "$CacheFolder\$File" -Directory
     foreach ($LXPDir in $LXPDirs) {
         $AppX = (Get-ChildItem -Path "$($LXPDir.FullName)\*.appx")[0]
         Add-AppxProvisionedPackage -Online -PackagePath $AppX.FullName -LicensePath "$($LXPDir.FullName)\License.xml"
@@ -40,28 +57,28 @@ foreach ($File in $ContentFiles) {
     }
 
     # Attempt to install LP cab files
-    $LPFiles = Get-ChildItem -Path "$($env:TEMP)\$File" -Recurse -Include "*Client-Language*"
+    $LPFiles = Get-ChildItem -Path "$CacheFolder\$File" -Recurse -Include "*Client-Language*"
     foreach ($LPFile in $LPFiles) {
         Add-WindowsPackage -Online -PackagePath $LPFile
         Write-Host "Installed package: $LPFile"
     }
 
     # Attempt to install LP basic cab files
-    $LPBasicFiles = Get-ChildItem -Path "$($env:TEMP)\$File" -Recurse -Include "*LanguageFeatures-Basic*"
+    $LPBasicFiles = Get-ChildItem -Path "$CacheFolder\$File" -Recurse -Include "*LanguageFeatures-Basic*"
     foreach ($LPFile in $LPBasicFiles) {
         Add-WindowsPackage -Online -PackagePath $LPFile
         Write-Host "Installed package: $LPFile"
     }
 
     # Attempt to install any remaining language feature cab files
-    $LPPkgFiles = Get-ChildItem -Path "$($env:TEMP)\$File" -Recurse -Include "*LanguageFeatures*" -Exclude "*LanguageFeatures-Basic*"
+    $LPPkgFiles = Get-ChildItem -Path "$CacheFolder\$File" -Recurse -Include "*LanguageFeatures*" -Exclude "*LanguageFeatures-Basic*"
     foreach ($LPFile in $LPPkgFiles) {
         Add-WindowsPackage -Online -PackagePath $LPFile
         Write-Host "Installed package: $LPFile"
     }
 
     # Attempt to install any remaining cab files
-    $PkgFiles = Get-ChildItem -Path "$($env:TEMP)\$File" -Recurse -Include "*.cab" -Exclude "*Client-Language*","*LanguageFeatures*"
+    $PkgFiles = Get-ChildItem -Path "$CacheFolder\$File" -Recurse -Include "*.cab" -Exclude "*Client-Language*","*LanguageFeatures*"
     foreach ($LPFile in $PkgFiles) {
         Add-WindowsPackage -Online -PackagePath $LPFile
         Write-Host "Installed package: $LPFile"
