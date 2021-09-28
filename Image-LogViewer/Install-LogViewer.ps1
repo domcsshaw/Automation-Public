@@ -16,7 +16,7 @@ param (
 )
 
 # Check to see if the local cache directory is present
-If ((Test-Path -Path $CacheFolder) -eq $false) {
+if (!(Test-Path -Path $CacheFolder)) {
     # Create the local cache directory
     New-Item -ItemType Directory $CacheFolder -Force -Confirm:$false
 }

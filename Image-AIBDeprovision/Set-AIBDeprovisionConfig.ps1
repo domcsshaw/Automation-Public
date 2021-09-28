@@ -7,12 +7,12 @@ param (
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
-    $PSFile = "DeprovisioningScript.ps1",
+    $PSFile = 'DeprovisioningScript.ps1',
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
-    $UnattendFile = "Unattend.xml",
+    $UnattendFile = 'Unattend.xml',
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
@@ -21,13 +21,13 @@ param (
 )
 
 # Check to see if the local cache directory is present
-If ((Test-Path -Path $CacheFolder) -eq $false) {
+if (!(Test-Path -Path $CacheFolder)) {
     # Create the local cache directory
     New-Item -ItemType Directory $CacheFolder -Force -Confirm:$false
 }
 
 # Check to see if the cache logs directory exists
-If (!(Test-Path -Path "$CacheFolder\Logs")) {
+if (!(Test-Path -Path "$CacheFolder\Logs")) {
     # Create the local cache directory
     New-Item -ItemType Directory "$CacheFolder\Logs" -Force -Confirm:$false
 }
@@ -36,13 +36,13 @@ If (!(Test-Path -Path "$CacheFolder\Logs")) {
 Start-Transcript -Path "$CacheFolder\Logs\Set-AIBDeprovisionConfig.log" -Append
 
 # Download and replace custom deprovisioning script
-if (Test-Path "C:\{PSFile}") {
-    Remove-Item "C:\{PSFile}" -Force
-    Write-Host "Original file: C:\{PSFile} deleted"
+if (Test-Path "C:\$PSFile") {
+    Remove-Item "C:\$PSFile" -Force
+    Write-Host "Original file: C:\$PSFile deleted"
 }
 Write-Host "Downloading file: $PSFile"
-Invoke-WebRequest -Uri "${ContentRoot}${PSFile}" -OutFile "C:\{PSFile}"
-Write-Host "File downloaded to: C:\{PSFile}"
+Invoke-WebRequest -Uri "${ContentRoot}${PSFile}" -OutFile "C:\$PSFile"
+Write-Host "File downloaded to: C:\$PSFile"
 
 # Download custom unattend answer file
 Write-Host "Downloading file: $UnattendFile"

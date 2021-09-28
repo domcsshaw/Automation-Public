@@ -10,20 +10,20 @@ param (
     [string[]]
     $ContentFiles = 'LangContent-en-gb',
 
-    [Parameter(Mandatory=$false, HelpMessage='The local (ProgramData) folder for downloads and logs.')]
+    [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
     $CacheFolder = "$env:ProgramData\Ensono"
 )
 
-# Check to see if the local cache directory exists
-If (!(Test-Path -Path $CacheFolder)) {
+# Check to see if the local cache directory is present
+if (!(Test-Path -Path $CacheFolder)) {
     # Create the local cache directory
     New-Item -ItemType Directory $CacheFolder -Force -Confirm:$false
 }
 
 # Check to see if the cache logs directory exists
-If (!(Test-Path -Path "$CacheFolder\Logs")) {
+if (!(Test-Path -Path "$CacheFolder\Logs")) {
     # Create the local cache directory
     New-Item -ItemType Directory "$CacheFolder\Logs" -Force -Confirm:$false
 }
