@@ -33,7 +33,7 @@ begin {
 
 		    [parameter(Mandatory=$false, HelpMessage="Name of the log file that the entry will be written to.")]
 		    [ValidateNotNullOrEmpty()]
-		    [string]$FileName = 'remove-appx.log'
+		    [string]$FileName = 'Remove-Appx.log'
 	    )
 
 	    # Determine log file location
