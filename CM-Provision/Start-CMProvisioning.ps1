@@ -3,7 +3,7 @@
         Starts MECM provisioning
     .DESCRIPTION
         Mainly intended to be called by an Azure custom script extension. This script will start to provision
-        ConfigMgr on a virtual machine. First downloads a set of source files and the Ensono.MECM PowerShell
+        MECM on a virtual machine. First downloads a set of source files and the Ensono.MECM PowerShell
         module, imports that module and invokes the installation from it.
     .PARAMETER SourceURL
         The URL to download a zip file that contains the content and scripts required for the install.
@@ -40,8 +40,9 @@ Expand-Archive -Path "$LocalPath\MECM.zip" -DestinationPath $LocalPath
 Import-Module -Name "$LocalPath\Module\Ensono.MECM.psd1"
 
 # Add a scheduled task that will start the install
+$ScriptCmd = "{Import-Module '$LocalPath\Module\Ensono.MECM.psd1'; Install-MECM -Mode Full}"
 Add-InstallTask -TaskName 'Start-CMProvisioning-T1' `
     -DelayedTask `
     -DelayMinutes 5 `
-    -ActionArgument "& {Import-Module '$LocalPath\Module\DS.ConfigMgr.psd1'; Install-MECM -Mode Full}" `
+    -ActionArgument "-Command $ScriptCmd" `
     -TaskDescription 'Installs MECM - phase 1 - pre-reqs, features, SQL Server'
