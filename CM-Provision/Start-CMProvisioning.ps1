@@ -11,7 +11,7 @@
         (Optional) The local folder path to sync the source files to for install, defaults to C:\CM-Install.
 #>
 param (
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
     $SourceURL = 'https://dsstorinfgen.blob.core.windows.net/mecmcontent/MECM.zip',
