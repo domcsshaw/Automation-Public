@@ -36,11 +36,11 @@ Expand-Archive -Path "$LocalPath\MECM.zip" -DestinationPath $LocalPath
 # Robocopy the source files
 # & Robocopy.exe $SourcePath $LocalPath /MIR /LOG:$LocalPath\Robocopy.log
 
-# Import the DS.ConfigMgr module
+# Import the MECM module
 Import-Module -Name "$LocalPath\Module\Ensono.MECM.psd1"
 
 # Add a scheduled task that will start the install
-$ScriptCmd = "{Import-Module '$LocalPath\Module\Ensono.MECM.psd1'; Install-MECM -Mode Full}"
+$ScriptCmd = "& {Import-Module '$LocalPath\Module\Ensono.MECM.psd1'; Install-MECM -Mode Full}"
 Add-InstallTask -TaskName 'Start-CMProvisioning-T1' `
     -DelayedTask `
     -DelayMinutes 5 `
