@@ -448,7 +448,7 @@ function Initialize-AzureDisks {
     if (!$Control.DiskLayout) {
         # Nothing to do
         Write-LogInfo -Message 'Nothing found in DiskLayout, cannot initialize or format disks' -Severity 2
-        return 0
+        return
     }
 
     Write-LogInfo -Message 'This is an Azure VM; initialize and format disks...' -Severity 1 -BlankLine
@@ -460,7 +460,7 @@ function Initialize-AzureDisks {
         $DiskNo = $Disk.LUN + 2
 
         # Initialize / online the disk as GPT (default)
-        Initialize-Disk -Number $DiskNo
+        Initialize-Disk -Number $DiskNo -ErrorAction SilentlyContinue
         Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
 
         # Create volumes on this disk
@@ -470,8 +470,11 @@ function Initialize-AzureDisks {
                 'DriveLetter' = $Vol.Letter
             }
             if ($Vol.Size -ne '0') {
-                [UInt64]$VolumeSize = $Vol.Size
+                [UInt64]$VolumeSize = ($Vol.Size / 1)    # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the PS-native xKB, xMB, xGB syntax)
                 $VolParams.Add('Size', $VolumeSize)
+            }
+            else {
+                $VolParams.Add('UseMaximumSize', $true)
             }
             New-Partition @VolParams | Format-Volume $Vol.FS -NewFileSystemLabel $Vol.Label
             Write-LogInfo -Message "New volume created; drive letter: $($Vol.Letter), size: $($Vol.Size), file system: $($Vol.FS)" -Severity 1
@@ -479,7 +482,6 @@ function Initialize-AzureDisks {
     }
 
     Write-LogInfo -Message 'Disk initialization and formatting complete' -Severity 1 -BlankLine
-    return 0
 }
 
 <#
@@ -980,7 +982,7 @@ function Install-MECM {
         The 'control.json' parameter 'AzureVM' must be set and the cmdlet will use the contents of the
         'DiskLayout' node in 'control.json' to determine how to partition and format the disks.
 #>
-function Initialize-Disks {
+function Initialize-VMDisks {
     [cmdletbinding()]
     param ()
 
@@ -991,8 +993,6 @@ function Initialize-Disks {
     else {
         Write-LogInfo -Message 'Disk initialization skipped - control value is false'
     }
-
-    return 0
 }
 
 <#
