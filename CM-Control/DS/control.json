@@ -68,28 +68,28 @@
                 {
                     "Size": "64GB",
                     "FS": "NTFS",
-                    "Letter": "F",
-                    "Label": "F [BIN]"
+                    "Letter": "E",
+                    "Label": "E [BIN]"
                 },
                 {
                     "Size": "64GB",
                     "FS": "ReFS",
-                    "Letter": "G",
-                    "Label": "G [SQL]" 
+                    "Letter": "F",
+                    "Label": "F [SQL]" 
                 },
                 {
                     "Size": "0",
                     "FS": "NTFS",
-                    "Letter": "H",
-                    "Label": "H [CONTENT]" 
+                    "Letter": "G",
+                    "Label": "G [CONTENT]" 
                 }
             ]
         }
     ],
 
-    "InstallDrive": "F:",
+    "InstallDrive": "E:",
     "ContentDrives": [
-        "H:"
+        "G:"
     ],
 
     "LocalSql": true,
@@ -97,10 +97,10 @@
 
     "SQLServer": "",
 
-    "SQLDrData": "G:",
-    "SQLDrLog": "G:",
-    "SQLDrTemp": "G:",
-    "SQLDrBkup": "G:",
+    "SQLDrData": "F:",
+    "SQLDrLog": "F:",
+    "SQLDrTemp": "F:",
+    "SQLDrBkup": "F:",
 
     "SQLSvEngAc": "SHAW\\svc-cm-sqldb",
     "SQLSvEngPw": "u7GygKsLzBpp07jU1Si6",

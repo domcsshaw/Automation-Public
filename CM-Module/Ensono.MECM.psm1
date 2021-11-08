@@ -1,13 +1,8 @@
-<#
-    Proprietary and Legal Notices
-    This script is the property of Ensono; the contents herein are the intellectual property and copyright of Ensono. Permitted disclosure of 
-    this script and its contents herein does not grant or construe any transfer or other rights in relation to Ensono's intellectual property.
-    Clients may only use the contents of this script for their own internal business use, solely for supporting Ensono's intellectual property.
-    No part of this script may be photocopied, reproduced, stored in a retrieval system or transmitted in any form or by any means whether 
-    electronic, mechanical or otherwise without the prior written permission of Ensono.
-#>
 
 # Module initialization ************************************************************************************************************************
+
+# Set error preference to stop execution
+$ErrorActionPreference = "Stop"
 
 # Root path
 $RootPath = Split-Path -Path $PSScriptRoot -Parent
@@ -164,7 +159,9 @@ function Test-DriveParameter {
     )
 
     if (($DriveParam.Length -ne 2) -or (!($DriveParam.EndsWith(":")))) {
-        Write-LogInfo -Message "Validation Error: drive parameter ($DriveParam) not formatted correctly - check control.json" -Severity 3
+        Write-LogInfo -Message `
+            "Validation Error: drive parameter ($DriveParam) not formatted correctly - check control.json" `
+            -Severity 3
     }
     else {
         Write-LogInfo -Message "Drive parameter correctly formatted ($DriveParam)" -Severity 1
@@ -181,7 +178,9 @@ function Confirm-CMValues {
 
     # Check site code length
     if ($Control.SiteCode.Length -ne 3) {
-        Write-LogInfo -Message 'Validation Error: Site Code not 3 characters - check control.json' -Severity 3
+        Write-LogInfo -Message `
+            'Validation Error: Site Code not 3 characters - check control.json' `
+            -Severity 3
     }
     else {
         Write-LogInfo -Message "Site code for install is: $($Control.SiteCode)" -Severity 1
@@ -232,19 +231,27 @@ function Confirm-SQLLocalValues {
             # Service accounts
             if ($SQLPrm -like 'SQLSv*') {
                 if ($SQLVal -eq '') {
-                    Write-LogInfo -Message "SQL service account parameter ($SQLPrm) not set, will use default" -Severity 2
+                    Write-LogInfo -Message `
+                        "SQL service account parameter ($SQLPrm) not set, will use default" `
+                        -Severity 2
                 }
                 else {
-                    Write-LogInfo -Message "SQL service account parameter ($SQLPrm) set to: $SQLVal" -Severity 1
+                    Write-LogInfo -Message `
+                        "SQL service account parameter ($SQLPrm) set to: $SQLVal" `
+                        -Severity 1
                 }
             }
             # SysAdmin accounts
             if ($SQLPrm -like 'SQLSA*') {
                 if ($SQLVal -eq '') {
-                    Write-LogInfo -Message "Validation Error: SQL sysadmin account parameter ($SQLPrm) not set - check control.json" -Severity 3
+                    Write-LogInfo -Message `
+                        "Validation Error: SQL sysadmin account parameter ($SQLPrm) not set - check control.json" `
+                        -Severity 3
                 }
                 else {
-                    Write-LogInfo -Message "SQL service account parameter ($SQLPrm) set to: $SQLVal" -Severity 1
+                    Write-LogInfo -Message `
+                        "SQL service account parameter ($SQLPrm) set to: $SQLVal" `
+                        -Severity 1
                 }
             }
             # TempDB settings
@@ -253,7 +260,9 @@ function Confirm-SQLLocalValues {
                     Write-LogInfo -Message "SQL TempDB parameter ($SQLPrm) set to: $SQLVal" -Severity 1
                 }
                 else {
-                    Write-LogInfo -Message "Validation Error: SQL TempDB parameter ($SQLPrm) not set to an integer - check control.json" -Severity 3
+                    Write-LogInfo -Message `
+                        "Validation Error: SQL TempDB parameter ($SQLPrm) not set to an integer - check control.json" `
+                        -Severity 3
                 }
             }
         }
@@ -262,10 +271,14 @@ function Confirm-SQLLocalValues {
     end {
         # For service accounts check for a pw if the account is specified
         if (($Control.SQLSvEngAc -ne '') -and ($Control.SQLSvEngPw -eq '')) {
-            Write-LogInfo -Message 'Validation Error: SQL Engine account specified but no password set - check control.json' -Severity 3
+            Write-LogInfo -Message `
+                'Validation Error: SQL Engine account specified but no password set - check control.json' `
+                -Severity 3
         }
         if (($Control.SQLSvAgtAc -ne '') -and ($Control.SQLSvAgtPw -eq '')) {
-            Write-LogInfo -Message 'Validation Error: SQL Agent account specified but no password set - check control.json' -Severity 3
+            Write-LogInfo -Message `
+                'Validation Error: SQL Agent account specified but no password set - check control.json' `
+                -Severity 3
         }
 
         Write-LogInfo -Message 'Validation of SQL-specific control values completed' -Severity 1
@@ -282,7 +295,9 @@ function Confirm-SQLRemoteValues {
 
     # Check SQL Server is specified
     if ($Control.SQLServer -eq '') {
-        Write-LogInfo -Message 'Validation Error: SQL Server not specified for remote SQL - check control.json' -Severity 3
+        Write-LogInfo -Message `
+            'Validation Error: SQL Server not specified for remote SQL - check control.json' `
+            -Severity 3
     }
     else {
         Write-LogInfo -Message "Remote SQL Server name for install is: $($Control.SQLServer)" -Severity 1
@@ -336,7 +351,11 @@ function Install-ADK {
         # Main ADK features
         Write-LogInfo -Message "Installing Windows ADK from $ADKSourcePath to $ADKInstallPath" -Severity 1
         Write-LogInfo -Message "ADK Features to install are: $ADKFeatures" -Severity 1
-        $ADKArgs = @('/quiet', "/features $ADKFeatures", '/norestart', "/installpath `"$ADKInstallPath`"", '/ceip off')
+        $ADKArgs = @('/quiet', 
+            "/features $ADKFeatures", 
+            '/norestart', 
+            "/installpath `"$ADKInstallPath`"", 
+            '/ceip off')
         Write-LogInfo -Message "Command line arguments: $ADKArgs" -Severity 1
 
         # Start the installer, output the result
@@ -345,12 +364,19 @@ function Install-ADK {
         Write-LogInfo -Message 'Successfully installed Windows ADK features' -Severity 1 -BlankLine
 
         # ADK Win PE addon
-        Write-LogInfo -Message "Installing Windows ADK Win PE add-on from $ADKWinPESourcePath to $ADKInstallPath" -Severity 1
-        $ADKWinPEArgs = @('/quiet', '/features +', '/norestart', "/installpath `"$ADKInstallPath`"", '/ceip off')
+        Write-LogInfo -Message `
+            "Installing Windows ADK Win PE add-on from $ADKWinPESourcePath to $ADKInstallPath" `
+            -Severity 1
+        $ADKWinPEArgs = @('/quiet', 
+            '/features +', 
+            '/norestart', 
+            "/installpath `"$ADKInstallPath`"", 
+            '/ceip off')
         Write-LogInfo -Message "Command line arguments: $ADKWinPEArgs" -Severity 1
 
         # Start the installer, output the result
-        $ADKWPEResult = Start-Process -FilePath "$ADKWinPESourcePath" -ArgumentList $ADKWinPEArgs -Wait -PassThru
+        $ADKWPEResult = Start-Process -FilePath "$ADKWinPESourcePath" `
+            -ArgumentList $ADKWinPEArgs -Wait -PassThru
         Write-LogInfo -Message "ADK WinPE install exit code: $($ADKWPEResult.ExitCode)" -Severity 1
         Write-LogInfo -Message 'Successfully installed Windows ADK WinPE feature' -Severity 1 -BlankLine
     }
@@ -400,10 +426,10 @@ function Install-Features {
     .SYNOPSIS
         Enables and configures correct TempDB setup for Azure VMs.
     .DESCRIPTION
-        This function configures the SQL TempDB for Azure VMs (i.e. move the TempDB to the Azure Temporary drive
-        as recommended). This setup comprises a PS script that is copied locally, setting the SQL DB Engine
-        service to manual startup and registering a scheduled task that will run at system startup and create the
-        folder for the TempDB files and start the SQL service.
+        This function configures the SQL TempDB for Azure VMs (i.e. move the TempDB to the Azure Temporary
+        drive as recommended). This setup comprises a PS script that is copied locally, setting the SQL DB
+        Engine service to manual startup and registering a scheduled task that will run at system startup and
+        create the folder for the TempDB files and start the SQL service.
 #>
 function Enable-AzureTempDB {
     [cmdletbinding()]
@@ -436,10 +462,10 @@ function Enable-AzureTempDB {
         Initializes and formats data disks on Azure VMs
     .DESCRIPTION
         This function initializes, formats and assigns drive letters on all data disks attached to the local
-        server, this is required for Azure VMs where the intention is to provision the VM and install all the 
-        software using automation. This function will only process RAW disks but will assume that disks should be
-        initialized, formatted and assigned in LUN-attached order. It is therefore important that the config file
-        drive letter assignments match the data disk order assigned to the VM in Azure.
+        server, this is required for Azure VMs where the intention is to provision the VM and install all the
+        software using automation. This function will only process RAW disks but will assume that disks
+        should be initialized, formatted and assigned in LUN-attached order. It is therefore important that
+        the config file drive letter assignments match the data disk order assigned to the VM in Azure.
 #>
 function Initialize-AzureDisks {
     [cmdletbinding()]
@@ -453,6 +479,13 @@ function Initialize-AzureDisks {
 
     Write-LogInfo -Message 'This is an Azure VM; initialize and format disks...' -Severity 1 -BlankLine
 
+    # There may be a CD-ROM attached if this is a new VM from a marketplace image; if so force it to Z:
+    $CDDrive = Get-CimInstance -ClassName Win32_Volume -Filter "DriveType = 5"
+    if ($CDDrive.DriveLetter -eq 'E') {
+        $CDDrive | Set-CimInstance -Property @{DriveLetter ='Z:'}
+        Write-LogInfo -Message 'Found a CD-ROM drive; driver letter reassigned to Z:' -Severity 1 -BlankLine
+    }
+
     # Online and initialize disk LUNs
     foreach ($Disk in $Control.DiskLayout) {
         # We must assume since this is standard Azure VM that the disk number will be the data disk LUN no
@@ -464,25 +497,43 @@ function Initialize-AzureDisks {
             Initialize-Disk -Number $DiskNo
             Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
         }
-        catch {
-            Write-LogInfo -Message "Disk no $DiskNo initialization message: $($_.Message)" -Severity 2
+        catch [System.Exception] {
+            Write-LogInfo -Message `
+                "Exception occurred initializing disk $DiskNo, message: $($_.Message)" `
+                -Severity 2
         }
 
         # Create volumes on this disk
         foreach ($Vol in $Disk.Volumes) {
+            # Build the parameters for this partition/volume
             $VolParams = @{
                 'DiskNumber' = $DiskNo
                 'DriveLetter' = $Vol.Letter
             }
             if ($Vol.Size -ne '0') {
-                [UInt64]$VolumeSize = ($Vol.Size / 1)    # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the PS-native xKB, xMB, xGB syntax)
+                # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the
+                # PS-native xKB, xMB, xGB syntax)
+                [UInt64]$VolumeSize = ($Vol.Size / 1)
                 $VolParams.Add('Size', $VolumeSize)
             }
             else {
                 $VolParams.Add('UseMaximumSize', $true)
             }
-            New-Partition @VolParams | Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label
-            Write-LogInfo -Message "New volume created; drive letter: $($Vol.Letter), size: $($Vol.Size), file system: $($Vol.FS)" -Severity 1
+
+            # Attempt to create the partition and format it
+            try {
+                New-Partition @VolParams | `
+                    Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label | `
+                    Out-Null
+                Write-LogInfo -Message `
+                    "New volume created; drive letter: $($Vol.Letter):, size: $($Vol.Size), file system: $($Vol.FS)" `
+                    -Severity 1
+            }
+            catch [System.Exception] {
+                Write-LogInfo -Message `
+                    "Exception occurred creating and formatting volume: $($Vol.Letter):, message: $($_.Message)" `
+                    -Severity 2
+            }
         }
     }
 
@@ -683,18 +734,20 @@ function Get-IniContent {
 
 <#
     .SYNOPSIS
-    Installs the MECM primary site
+        Installs the MECM primary site
     .DESCRIPTION
-    This cmdlet will install a MECM primary site on the local server. No pre-requisites will be installed
-    using this command. The SQLServer parameter in control.json should be used to specify the database server for
-    this install.
+        This cmdlet will install a MECM primary site on the local server. No pre-requisites will be installed
+        using this command. The SQLServer parameter in control.json should be used to specify the database
+        server for this install.
 #>
 function Install-CMPrimarySite {
     [cmdletbinding()]
     param ()
 
     # Start MECM install processing
-    Write-LogInfo -Message 'Starting Microsoft Endpoint Configuration Manager Primary Site install...' -Severity 1 -BlankLine
+    Write-LogInfo -Message `
+        'Starting Microsoft Endpoint Configuration Manager Primary Site install...' `
+        -Severity 1 -BlankLine
 
     # Paths
     $CM7zPath = "$SourcePath\CM.7z"
@@ -741,27 +794,28 @@ function Install-CMPrimarySite {
 
 <#
     .SYNOPSIS
-    Adds a Windows scheduled task that will perform a (Powershell) install action
+        Adds a Windows scheduled task that will perform a (Powershell) install action
     .DESCRIPTION
-    This cmdlet will create a new Windows scheduled task based on the input parameters. The task can be either set
-    to run on startup or once at a specific delayed time. The task will be added to the 'MECM' folder and any
-    existing task (with the same name) will be removed and replaced. The task action will always be a Powershell
-    command; the specific action can be set with the -ActionArgument parameter.
+        This cmdlet will create a new Windows scheduled task based on the input parameters. The task can be
+        either set to run on startup or once at a specific delayed time. The task will be added to the 'MECM'
+        folder and any existing task (with the same name) will be removed and replaced. The task action will
+        always be a Powershell command; the specific action can be set with the -ActionArgument parameter.
     .PARAMETER TaskName
-    A string that will set the 'Name' property of the new task, if a task with this name already exists it will be
-    deleted and replaced.
+        A string that will set the 'Name' property of the new task, if a task with this name already exists
+        it will be deleted and replaced.
     .PARAMETER StartupTask
-    Switch to set the new task to run at computer startup (ParameterSet - StartupTask).
+        Switch to set the new task to run at computer startup (ParameterSet - StartupTask).
     .PARAMETER DelayedTask
-    Switch to set the new task to run once at a time offset by -DelayMinutes (ParameterSet - [Default] DelayedTask).
+        Switch to set the new task to run once at a time offset by -DelayMinutes (ParameterSet - [Default]
+        DelayedTask).
     .PARAMETER DelayMinutes
-    An integer that specifies the task start delay (from the current time) in minutes, can be a value between 0
-    120 inclusive (ParameterSet - [Default] DelayedTask).
+        An integer that specifies the task start delay (from the current time) in minutes, can be a value
+        between 0-120 inclusive (ParameterSet - [Default] DelayedTask).
     .PARAMETER ActionArgument
-    A string that specifies the Powershell command to be run by the new task, should be either a script file '-File
-    <path to Powershell script>' or a command block '-Command & {<Some-Commands | To-Do>}'.
+        A string that specifies the Powershell command to be run by the new task, should be either a script
+        file '-File <path to Powershell script>' or a command block '-Command & {<Some-Commands | To-Do>}'.
     .PARAMETER TaskDescription
-    (Optional) a string that will be set as the new task 'Description' property.
+        (Optional) a string that will be set as the new task 'Description' property.
 #>
 function Add-InstallTask {
     [CmdletBinding(DefaultParameterSetName = 'DelayedTask')]
@@ -824,7 +878,9 @@ function Add-InstallTask {
     if ($DelayedTask) {
         $TaskStart = (Get-Date).AddMinutes($DelayMinutes)
         $TaskStartupTrigger = New-ScheduledTaskTrigger -Once -At $TaskStart
-        Write-LogInfo -Message "A delayed task will be created and it will run in $DelayMinutes mins" -Severity 1
+        Write-LogInfo -Message `
+            "A delayed task will be created and it will run in $DelayMinutes mins" `
+            -Severity 1
     }
 
     # Check if this task already exists, if so delete it
@@ -833,11 +889,14 @@ function Add-InstallTask {
         Write-LogInfo -Message "Scheduled task $TaskName already exists." -Severity 1
         [void](Disable-ScheduledTask -InputObject $ExistingTask)
         Unregister-ScheduledTask -InputObject $ExistingTask -Confirm:$false
-        Write-LogInfo -Message "Existing scheduled task $TaskName unregistered; will be re-created" -Severity 1
+        Write-LogInfo -Message `
+            "Existing scheduled task $TaskName unregistered; will be re-created" `
+            -Severity 1
     }
 
     # Add the new task, to run as SYSTEM
-    $TaskStartupAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy Bypass $ActionArgument"
+    $TaskStartupAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
+        -Argument "-ExecutionPolicy Bypass $ActionArgument"
     $TaskStartupPrc = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -RunLevel Highest
     [void](Register-ScheduledTask -TaskName $TaskName `
         -TaskPath '\MECM' `
@@ -854,24 +913,24 @@ function Add-InstallTask {
         Installs a MECM primary site.
     .DESCRIPTION
         This cmdlet will install a MECM primary site on the local server. SQL will be installed locally, if
-        required, or can be remote. All the pre-requisite Windows Server roles and features will be installed as
-        well. This is the FULL install, other cmdlets in this module are essentially subsets of this cmdlet.
-        Parameters are contained in 'control.json'.
+        required, or can be remote. All the pre-requisite Windows Server roles and features will be installed
+        as well. This is the FULL install, other cmdlets in this module are essentially subsets of this
+        cmdlet. All parameters are contained in 'control.json'.
     .PARAMETER Mode
         Determines the installation set that will be attempted, can be one of the following values:
-            AllPreReqs - will install all pre-requisite features and SQL Server (where LocalSql is true) but not
-                the MECM Primary site itself.
+            AllPreReqs - will install all pre-requisite features and SQL Server (where LocalSql is true) but
+                not the MECM Primary site itself.
             CMOnly - will install the MECM Primary site only (pre-req configuration must be already
                 complete).
             Full - will install the complete configuration.
     .PARAMETER LocalSql
-        Switch to install a local SQL Server instance for the database, otherwise a remote SQL server/instance must
-        be specified in control.json. When this switch is enabled it will override the value of 'LocalSql' in
-        'control.json'.
+        Switch to install a local SQL Server instance for the database, otherwise a remote SQL server/
+        instance must be specified in control.json. When this switch is enabled it will override the value of
+        'LocalSql' in 'control.json'.
     .PARAMETER SqlVersion
-        (Optional) Specify the version of SQL to be installed, should match the source files, can be 2016, 2017 or
-        2019, the value set here will override the value of SqlVersion in 'control.json'. Has no effect unless
-        -LocalSql is set here or true in 'control.json'.
+        (Optional) Specify the version of SQL to be installed, should match the source files, can be 2016,
+        2017 or 2019, the value set here will override the value of SqlVersion in 'control.json'. Has no
+        effect unless -LocalSql is set here or true in 'control.json'.
 #>
 function Install-MECM {
     [cmdletbinding(PositionalBinding = $true)]
@@ -1005,8 +1064,8 @@ function Initialize-VMDisks {
         Installs Windows ADK features required for MECM.
     .DESCRIPTION
         This cmdlet will install all Windows ADK features required for MECM primary site on the local server.
-        The install drive can be specified as a parameter, otherwise the value will be taken from the control.json
-        file.
+        The install drive can be specified as a parameter, otherwise the value will be taken from the
+        control.json file.
     .PARAMETER InstallDrive
         String to specify the drive to install ADK features to, if specified, this overrides control value.
 #>
@@ -1053,7 +1112,9 @@ function Install-PreReqFeatures {
         # Primary site features
         Write-LogInfo -Message 'Installing Windows pre-requisite features for primary site...' -Severity 1
         $FeaturesRetVal = Install-Features -Features $Control.WindowsFeatures
-        Write-LogInfo -Message "Windows features for primary site installed, return value: $FeaturesRetVal" -Severity 1 -BlankLine
+        Write-LogInfo -Message `
+            "Windows features for primary site installed, return value: $FeaturesRetVal" `
+            -Severity 1 -BlankLine
     }
     else {
         Write-LogInfo -Message 'Primary site pre-requisite features skipped' -Severity 1 -BlankLine
@@ -1069,7 +1130,9 @@ function Install-PreReqFeatures {
         # Install set of features
         Write-LogInfo -Message 'Installing Windows pre-requisite features for MP...' -Severity 1
         $FeaturesRetVal = Install-Features -Features $Control.MPFeatures
-        Write-LogInfo -Message "Windows features for MP installed, return value: $FeaturesRetVal" -Severity 1 -BlankLine
+        Write-LogInfo -Message `
+            "Windows features for MP installed, return value: $FeaturesRetVal" `
+            -Severity 1 -BlankLine
     }
     else {
         Write-LogInfo -Message 'MP pre-requisite features skipped' -Severity 1 -BlankLine
@@ -1083,7 +1146,9 @@ function Install-PreReqFeatures {
         # Install set of features
         Write-LogInfo -Message 'Installing Windows pre-requisite features for DP...' -Severity 1
         $FeaturesRetVal = Install-Features -Features $Control.DPFeatures
-        Write-LogInfo -Message "Windows features for DP installed, return value: $FeaturesRetVal" -Severity 1 -BlankLine
+        Write-LogInfo -Message `
+            "Windows features for DP installed, return value: $FeaturesRetVal" `
+            -Severity 1 -BlankLine
     }
     else {
         Write-LogInfo -Message 'DP pre-requisite features skipped' -Severity 1 -BlankLine
@@ -1115,7 +1180,9 @@ function Install-SMSFiles {
             Write-LogInfo -Message "Found fixed drive: ${DriveLet}:" -Severity 1
             # Check against array of content drives from parameters - skip these
             if ("${DriveLet}:" -in $Control.ContentDrives) {
-                Write-LogInfo -Message "Skipping fixed drive ${DriveLet}: because it is marked as a content drive" -Severity 1 -BlankLine
+                Write-LogInfo -Message `
+                    "Skipping fixed drive ${DriveLet}: because it is marked as a content drive" `
+                    -Severity 1 -BlankLine
             }
             else {
                 # Create the .sms file
@@ -1124,7 +1191,9 @@ function Install-SMSFiles {
                     Write-LogInfo -Message "${DriveLet}:\no_sms_on_drive.sms added" -Severity 1 -BlankLine
                 }
                 else {
-                    Write-LogInfo -Message "${DriveLet}:\no_sms_on_drive.sms already exists" -Severity 1 -BlankLine
+                    Write-LogInfo -Message `
+                        "${DriveLet}:\no_sms_on_drive.sms already exists" `
+                        -Severity 1 -BlankLine
                 }
             }
         }
@@ -1136,12 +1205,12 @@ function Install-SMSFiles {
     .SYNOPSIS
         Installs SQL Server database engine on the local server
     .DESCRIPTION
-        This script will install SQL Server on the local server for MECM. If not specified will default to the
-        value from 'control.json'. Make sure that the source file (SQL.7z) contains the correct version files.
-        Other parameters for the install of SQL are contained in 'control.json'.
+        This script will install SQL Server on the local server for MECM. If not specified will default to
+        the value from 'control.json'. Make sure that the source file (SQL.7z) contains the correct version
+        files. Other parameters for the install of SQL are contained in 'control.json'.
     .PARAMETER SQLVersion
-        (Optional) Specify the version of SQL to be installed, should match the source files, can be 2016, 2017 or
-        2019, the value set here will override the value of SqlVersion in 'control.json'.
+        (Optional) Specify the version of SQL to be installed, should match the source files, can be 2016,
+        2017 or 2019, the value set here will override the value of SqlVersion in 'control.json'.
 #>
 function Install-SQLServer {
     [cmdletbinding()]
@@ -1209,8 +1278,9 @@ function Install-SQLServer {
     }
 
     # Create an array to hold all the parameters
-    $SQLOps = @($SQLOpQ, $SQLOpLic, $SQLOpUpdSrc, $SQLOpAct, $SQLOpProgress, $SQLOpFeat, $SQLOpInstNm, $SQLOpCollatn, $SQLOpInstDir,
-        $SQLOpDataDir, $SQLOpLogDir, $SQLOpTmpDir, $SQLOpTmpLgDir, $SQLOpBkupDir, $SQLOpSAAccts)
+    $SQLOps = @($SQLOpQ, $SQLOpLic, $SQLOpUpdSrc, $SQLOpAct, $SQLOpProgress, $SQLOpFeat, $SQLOpInstNm,
+        $SQLOpCollatn, $SQLOpInstDir, $SQLOpDataDir, $SQLOpLogDir, $SQLOpTmpDir, $SQLOpTmpLgDir,
+        $SQLOpBkupDir, $SQLOpSAAccts)
 
     # Build command line parameters for SQL service accounts
     if ($SQLSvEngAc -ne '') {
@@ -1302,8 +1372,8 @@ function Install-SQLServer {
     .SYNOPSIS
         Installs SQL Server management tools on the local server
     .DESCRIPTION
-        This script will install SQL Server management tools. The install drive can be specified as a parameter,
-        otherwise the value will be taken from the control.json file.
+        This script will install SQL Server management tools. The install drive can be specified as a
+        parameter, otherwise the value will be taken from the control.json file.
     .PARAMETER InstallDrive
         String to specify the drive to install SSMS to, if specified, this overrides control value.
 #>
