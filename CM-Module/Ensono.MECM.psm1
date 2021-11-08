@@ -88,7 +88,7 @@ function Write-LogInfo {
         Start-Sleep -Milliseconds 500
 
         # Try again
-        Add-Content -Value $LogText -LiteralPath $LogFile -ErrorAction Continue
+        Add-Content -Value $LogText -LiteralPath $LogFile -ErrorAction SilentlyContinue
     }
 
     # Write message to output
@@ -460,8 +460,13 @@ function Initialize-AzureDisks {
         $DiskNo = $Disk.LUN + 2
 
         # Initialize / online the disk as GPT (default)
-        Initialize-Disk -Number $DiskNo -ErrorAction SilentlyContinue
-        Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
+        try {
+            Initialize-Disk -Number $DiskNo
+            Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
+        }
+        catch {
+            Write-LogInfo -Message "Disk no $DiskNo initialization message: $($_.Message)" -Severity 2
+        }
 
         # Create volumes on this disk
         foreach ($Vol in $Disk.Volumes) {
@@ -476,7 +481,7 @@ function Initialize-AzureDisks {
             else {
                 $VolParams.Add('UseMaximumSize', $true)
             }
-            New-Partition @VolParams | Format-Volume $Vol.FS -NewFileSystemLabel $Vol.Label
+            New-Partition @VolParams | Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label
             Write-LogInfo -Message "New volume created; drive letter: $($Vol.Letter), size: $($Vol.Size), file system: $($Vol.FS)" -Severity 1
         }
     }
