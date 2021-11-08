@@ -1,0 +1,130 @@
+{
+    "SiteCode": "EXP",
+    "SiteName": "Example Primary Site",
+
+    "WindowsFeatures": [
+        "NET-Framework-45-Features",
+        "NET-Framework-45-Core",
+        "NET-Framework-Core",
+        "BITS",
+        "BITS-Compact-Server",
+        "RDC",
+        "UpdateServices-RSAT",
+        "UpdateServices-API",
+        "UpdateServices-UI"
+    ],
+
+    "MP": true,
+    "MPFeatures": [
+        "NET-WCF-Services45",
+        "NET-WCF-TCP-PortSharing45",
+        "BITS-IIS-Ext",
+        "RSAT-Bits-Server",
+        "Web-Server",
+        "Web-WebServer",
+        "Web-ISAPI-Ext",
+        "Web-WMI",
+        "Web-Metabase",
+        "Web-Windows-Auth",
+        "Web-ASP",
+        "Web-Asp-Net",
+        "Web-Asp-Net45"
+    ],
+    "DP": false,
+    "DPFeatures": [
+        "FS-FileServer",
+        "RDC",
+        "Web-WebServer",
+        "Web-Common-Http",
+        "Web-Default-Doc",
+        "Web-Dir-Browsing",
+        "Web-Http-Errors",
+        "Web-Static-Content",
+        "Web-Http-Redirect",
+        "Web-Health",
+        "Web-Http-Logging",
+        "Web-Performance",
+        "Web-Stat-Compression",
+        "Web-Security",
+        "Web-Filtering",
+        "Web-Windows-Auth",
+        "Web-App-Dev",
+        "Web-ISAPI-Ext",
+        "Web-Mgmt-Tools",
+        "Web-Mgmt-Console",
+        "Web-Mgmt-Compat",
+        "Web-Metabase",
+        "Web-WMI",
+        "Web-Scripting-Tools"
+    ],
+
+    "AzureVM": true,
+    "AzureTempDrive": "D:",
+
+    "DiskLayout": [
+        {
+            "LUN": 0,
+            "Volumes": [
+                {
+                    "Size": "64GB",
+                    "FS": "NTFS",
+                    "Letter": "E",
+                    "Label": "E [BIN]"
+                },
+                {
+                    "Size": "64GB",
+                    "FS": "ReFS",
+                    "Letter": "F",
+                    "Label": "F [SQL]" 
+                },
+                {
+                    "Size": "0",
+                    "FS": "NTFS",
+                    "Letter": "G",
+                    "Label": "G [CONTENT]" 
+                }
+            ]
+        }
+    ],
+
+    "InstallDrive": "E:",
+    "ContentDrives": [
+        "G:"
+    ],
+
+    "LocalSql": true,
+    "SqlVersion": 2019,
+
+    "SQLServer": "",
+
+    "SQLDrData": "F:",
+    "SQLDrLog": "F:",
+    "SQLDrTemp": "F:",
+    "SQLDrBkup": "F:",
+
+    "SQLSvEngAc": "SHAW\\svc-cm-sqldb",
+    "SQLSvEngPw": "u7GygKsLzBpp07jU1Si6",
+    "SQLSvAgtAc": "SHAW\\svc-cm-sqla",
+    "SQLSvAgtPw": "n2ZWRrLQjvpSDleMJIAm",
+
+    "SQLSAAccts": [
+        "SHAW\\g-d-delg-adm-cmsql",
+        "SHAW\\g-d-delg-adm-sql"
+    ],
+
+    "SQLTmpFiles" : 4,
+    "SQLTmpFileSize" : 500,
+    "SQLTmpFileGrw": 500,
+    "SQLTmpLogFileSize": 1500,
+    "SQLTmpLogFileGrw": 500,
+
+    "SQLCMDBFiles" : 4,
+    "SQLCMDBFileSize" : 2000,
+    "SQLCMDBFileGrw": 500,
+    "SQLCMDBLogFileSize": 2000,
+    "SQLCMDBLogFileGrw": 500,
+
+    "SQLMinMemory" : 2048,
+    "SQLMaxMemory" : 4096,
+    "SQLMaxDOP" : 4
+}
