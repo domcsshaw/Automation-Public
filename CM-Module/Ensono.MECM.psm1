@@ -514,7 +514,7 @@ function Initialize-AzureDisks {
             Initialize-Disk -Number $DiskNo -ErrorAction Stop
             Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
         }
-        catch [System.Exception] {
+        catch {
             Write-LogInfo -Message `
                 "Exception occurred initializing disk $DiskNo, message: $($_.Message)" `
                 -Severity 2
