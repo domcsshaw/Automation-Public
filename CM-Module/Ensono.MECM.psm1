@@ -138,7 +138,7 @@ function Expand-7zArchive {
     }
     catch {
         Write-LogInfo -Message `
-            "Error unzipping: ${ArchivePath}: $($PSItem.Exception.Message) " `
+            "Error unzipping: ${ArchivePath}: $($PSItem.Exception.Message)" `
             -Severity 3
     }
 
@@ -398,7 +398,7 @@ function Install-ADK {
     }
     catch {
         Write-LogInfo -Message `
-            "Error while installing Windows ADK: $($PSItem.Exception.Message) " `
+            "Error while installing Windows ADK: $($PSItem.Exception.Message)" `
             -Severity 3
     }
 
@@ -437,7 +437,7 @@ function Install-Features {
     }
     catch {
         Write-LogInfo -Message `
-            "Error installing Windows pre-requisite features: $($PSItem.Exception.Message) " `
+            "Error installing Windows pre-requisite features: $($PSItem.Exception.Message)" `
             -Severity 3
     }
 }
@@ -522,7 +522,7 @@ function Initialize-AzureDisks {
         }
         catch {
             Write-LogInfo -Message `
-                "Exception occurred initializing disk ${DiskNo}: $($PSItem.Exception.Message) " `
+                "Exception occurred initializing disk ${DiskNo}: $($PSItem.Exception.Message)" `
                 -Severity 2
         }
 
@@ -532,7 +532,6 @@ function Initialize-AzureDisks {
             $VolParams = @{
                 'DiskNumber' = $DiskNo
                 'DriveLetter' = $Vol.Letter
-                'ErrorAction' = Stop
             }
             if ($Vol.Size -ne '0') {
                 # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the
@@ -546,7 +545,7 @@ function Initialize-AzureDisks {
 
             # Attempt to create the partition and format it
             try {
-                New-Partition @VolParams | `
+                New-Partition @VolParams -ErrorAction Stop | `
                     Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label -ErrorAction Stop | `
                     Out-Null
                 Write-LogInfo -Message `
@@ -555,7 +554,7 @@ function Initialize-AzureDisks {
             }
             catch {
                 Write-LogInfo -Message `
-                    "Exception occurred creating and formatting volume: $($Vol.Letter): $($PSItem.Exception.Message) " `
+                    "Exception occurred creating and formatting volume: $($Vol.Letter): $($PSItem.Exception.Message)" `
                     -Severity 2
             }
         }
