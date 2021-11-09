@@ -361,7 +361,14 @@ function Install-ADK {
         # Start the installer, output the result
         $ADKResult = Start-Process -FilePath "$ADKSourcePath" -ArgumentList $ADKArgs -Wait -PassThru
         Write-LogInfo -Message "ADK install exit code: $($ADKResult.ExitCode)" -Severity 1
-        Write-LogInfo -Message 'Successfully installed Windows ADK features' -Severity 1 -BlankLine
+        
+        # Process result
+        if ($ADKResult.ExitCode -in 0, 1641, 3010) {
+            Write-LogInfo -Message 'Successfully installed Windows ADK features' -Severity 1 -BlankLine
+        }
+        else {
+            Write-LogInfo -Message 'Error installing Windows ADK features' -Severity 3
+        }
 
         # ADK Win PE addon
         Write-LogInfo -Message `
@@ -378,7 +385,14 @@ function Install-ADK {
         $ADKWPEResult = Start-Process -FilePath "$ADKWinPESourcePath" `
             -ArgumentList $ADKWinPEArgs -Wait -PassThru
         Write-LogInfo -Message "ADK WinPE install exit code: $($ADKWPEResult.ExitCode)" -Severity 1
-        Write-LogInfo -Message 'Successfully installed Windows ADK WinPE feature' -Severity 1 -BlankLine
+
+        # Process result
+        if ($ADKWPEResult.ExitCode -in 0, 1641, 3010) {
+            Write-LogInfo -Message 'Successfully installed Windows ADK WinPE feature' -Severity 1 -BlankLine
+        }
+        else {
+            Write-LogInfo -Message 'Error installing Windows ADK WinPE feature' -Severity 3
+        }
     }
     catch [System.Exception] {
         Write-LogInfo -Message 'Error installing Windows ADK' -Severity 3
@@ -957,8 +971,8 @@ function Install-MECM {
 
     # CMOnly mode - start the MECM install and return
     if ($Mode -eq 'CMOnly') {
-        $CMSiteInstall = Install-CMPrimarySite
-        return $CMSiteInstall
+        Install-CMPrimarySite
+        return
     }
 
     # Otherwise continue
@@ -992,7 +1006,7 @@ function Install-MECM {
     Write-LogInfo -Message 'Parameter validation complete' -Severity 1 -BlankLine
 
     # Format drives for Azure VM according to 'DiskLayout' in 'control.json'
-    Initialize-Disks
+    Initialize-VMDisks
 
     # Install ADK pre-requisite
     Install-PreReqADK
@@ -1016,7 +1030,7 @@ function Install-MECM {
 
     # AllPreReqs mode - now done so return
     if ($Mode -eq 'AllPreReqs') {
-        return 0
+        return
     }
 
     # If we're still running here, it must be 'Full' mode
@@ -1123,32 +1137,28 @@ function Install-PreReqFeatures {
     # Extra roles and features for MP & DP (optional)
 
     # Management Point (MP)
-    if ((($FeatureSet -eq 'All') -and ($Control.MP)) -or ($FeatureSet -eq 'MP') -or ($FeatureSet -eq 'DP&MP')) {
+    if ((($FeatureSet -eq 'All') -and ($Control.MP)) -or ($FeatureSet -in 'MP','DP&MP')) {
         # Get feature list
         Write-LogInfo -Message 'MP to be installed...' -Severity 1
 
         # Install set of features
         Write-LogInfo -Message 'Installing Windows pre-requisite features for MP...' -Severity 1
-        $FeaturesRetVal = Install-Features -Features $Control.MPFeatures
-        Write-LogInfo -Message `
-            "Windows features for MP installed, return value: $FeaturesRetVal" `
-            -Severity 1 -BlankLine
+        Install-Features -Features $Control.MPFeatures
+        Write-LogInfo -Message "Windows features for MP installed sucessfully" -Severity 1 -BlankLine
     }
     else {
         Write-LogInfo -Message 'MP pre-requisite features skipped' -Severity 1 -BlankLine
     }
 
     # Distribution Point (DP)
-    if ((($FeatureSet -eq 'All') -and ($Control.DP)) -or ($FeatureSet -eq 'DP') -or ($FeatureSet -eq 'DP&MP')) {
+    if ((($FeatureSet -eq 'All') -and ($Control.DP)) -or ($FeatureSet -in 'DP','DP&MP')) {
         # Get feature list
         Write-LogInfo -Message 'DP to be installed...' -Severity 1
     
         # Install set of features
         Write-LogInfo -Message 'Installing Windows pre-requisite features for DP...' -Severity 1
-        $FeaturesRetVal = Install-Features -Features $Control.DPFeatures
-        Write-LogInfo -Message `
-            "Windows features for DP installed, return value: $FeaturesRetVal" `
-            -Severity 1 -BlankLine
+        Install-Features -Features $Control.DPFeatures
+        Write-LogInfo -Message "Windows features for DP installed sucessfully" -Severity 1 -BlankLine
     }
     else {
         Write-LogInfo -Message 'DP pre-requisite features skipped' -Severity 1 -BlankLine
@@ -1353,7 +1363,14 @@ function Install-SQLServer {
     $SQLResult = Start-Process -FilePath "$SQLSetupPath" -ArgumentList $SQLOps -Wait -PassThru
     Write-LogInfo -Message "SQL Server install exit code: $($SQLResult.ExitCode)" -Severity 1
     Write-LogInfo -Message 'SQL Server install completed' -Severity 1
-    Write-Host ''
+
+    # Process result
+    if ($SQLResult.ExitCode -in 0, 1641, 3010) {
+        Write-LogInfo -Message 'Successfully installed SQL Server' -Severity 1 -BlankLine
+    }
+    else {
+        Write-LogInfo -Message 'Error installing SQL Server' -Severity 3
+    }
 
     # For Azure VM - configuration for moving TempDB files to temporary storage
     # Check Azure VM
@@ -1413,9 +1430,8 @@ function Install-SQLTools {
     Write-LogInfo -Message "SQL tools install exit code: $($SQLToolsResult.ExitCode)" -Severity 1
 
     # Process result
-    if ($SQLToolsResult.ExitCode -eq 0) {
+    if ($SQLToolsResult.ExitCode -in 0, 1641, 3010) {
         Write-LogInfo -Message 'Successfully installed SQL Server management tools' -Severity 1 -BlankLine
-        return 0
     }
     else {
         Write-LogInfo -Message 'Error installing SQL Server management tools' -Severity 3
