@@ -76,7 +76,7 @@ function Write-LogInfo {
     try {
         Add-Content -Value $LogText -LiteralPath $LogFile -ErrorAction Stop
     }
-    catch [System.Exception] {
+    catch {
         Write-Warning -Message 'Unable to append log entry to log file'
 
         # Wait a bit
@@ -136,8 +136,10 @@ function Expand-7zArchive {
         Write-LogInfo -Message "Attempting to unzip file: $ArchivePath" -Severity 1
         & "$SourcePath\7z\7za.exe" x -o"$ExpandedPath" "$ArchivePath"
     }
-    catch [System.Exception] {
-        Write-LogInfo -Message "Error unzipping: $ArchivePath" -Severity 3
+    catch {
+        Write-LogInfo -Message `
+            "Error unzipping: ${ArchivePath}: $($PSItem.Exception.Message) " `
+            -Severity 3
     }
 
     Write-LogInfo "Completed unzip operation of $ArchivePath" -Severity 1 -BlankLine
@@ -394,8 +396,10 @@ function Install-ADK {
             Write-LogInfo -Message 'Error installing Windows ADK WinPE feature' -Severity 3
         }
     }
-    catch [System.Exception] {
-        Write-LogInfo -Message 'Error installing Windows ADK' -Severity 3
+    catch {
+        Write-LogInfo -Message `
+            "Error while installing Windows ADK: $($PSItem.Exception.Message) " `
+            -Severity 3
     }
 
     Write-LogInfo -Message 'Windows ADK installation processing completed' -Severity 1
@@ -431,8 +435,10 @@ function Install-Features {
         }
         Write-LogInfo -Message 'Successfully installed Windows feature set' -Severity 1
     }
-    catch [System.Exception] {
-        Write-LogInfo -Message 'Error installing Windows pre-requisite features' -Severity 3
+    catch {
+        Write-LogInfo -Message `
+            "Error installing Windows pre-requisite features: $($PSItem.Exception.Message) " `
+            -Severity 3
     }
 }
 
@@ -516,7 +522,7 @@ function Initialize-AzureDisks {
         }
         catch {
             Write-LogInfo -Message `
-                "Exception occurred initializing disk ${DiskNo}: $($PSItem.Exception.Message)" `
+                "Exception occurred initializing disk ${DiskNo}: $($PSItem.Exception.Message) " `
                 -Severity 2
         }
 
@@ -526,6 +532,7 @@ function Initialize-AzureDisks {
             $VolParams = @{
                 'DiskNumber' = $DiskNo
                 'DriveLetter' = $Vol.Letter
+                'ErrorAction' = Stop
             }
             if ($Vol.Size -ne '0') {
                 # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the
@@ -540,7 +547,7 @@ function Initialize-AzureDisks {
             # Attempt to create the partition and format it
             try {
                 New-Partition @VolParams | `
-                    Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label | `
+                    Format-Volume -FileSystem $Vol.FS -NewFileSystemLabel $Vol.Label -ErrorAction Stop | `
                     Out-Null
                 Write-LogInfo -Message `
                     "New volume created; drive letter: $($Vol.Letter):, size: $($Vol.Size), file system: $($Vol.FS)" `
@@ -548,7 +555,7 @@ function Initialize-AzureDisks {
             }
             catch {
                 Write-LogInfo -Message `
-                    "Exception occurred creating and formatting volume: $($Vol.Letter): $($PSItem.Exception.Message)" `
+                    "Exception occurred creating and formatting volume: $($Vol.Letter): $($PSItem.Exception.Message) " `
                     -Severity 2
             }
         }
