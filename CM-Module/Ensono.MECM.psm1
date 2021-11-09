@@ -491,13 +491,16 @@ function Initialize-AzureDisks {
         return
     }
 
-    Write-LogInfo -Message 'This is an Azure VM; initialize and format disks...' -Severity 1 -BlankLine
+    Write-LogInfo -Message 'This is an Azure VM; initialize and format disks...' -Severity 1
 
     # There may be a CD-ROM attached if this is a new VM from a marketplace image; if so force it to Z:
     $CDDrive = Get-CimInstance -ClassName Win32_Volume -Filter "DriveType = 5"
     if ($CDDrive.DriveLetter -eq 'E') {
         $CDDrive | Set-CimInstance -Property @{DriveLetter ='Z:'}
-        Write-LogInfo -Message 'Found a CD-ROM drive; driver letter reassigned to Z:' -Severity 1 -BlankLine
+        Write-LogInfo -Message 'Found a CD-ROM drive; driver letter reassigned to Z:' -Severity 1
+    }
+    else {
+        Write-LogInfo -Message 'No CD-ROM drive present, continuing...' -Severity 1
     }
 
     # Online and initialize disk LUNs
@@ -508,7 +511,7 @@ function Initialize-AzureDisks {
 
         # Initialize / online the disk as GPT (default)
         try {
-            Initialize-Disk -Number $DiskNo
+            Initialize-Disk -Number $DiskNo -ErrorAction Stop
             Write-LogInfo -Message "Disk no $DiskNo, (LUN$($Disk.LUN)) initialized" -Severity 1
         }
         catch [System.Exception] {
