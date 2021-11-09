@@ -516,7 +516,7 @@ function Initialize-AzureDisks {
         }
         catch {
             Write-LogInfo -Message `
-                "Exception occurred initializing disk $DiskNo, message: $($_.Message)" `
+                "Exception occurred initializing disk ${DiskNo}: $($PSItem.Exception.Message)" `
                 -Severity 2
         }
 
@@ -546,9 +546,9 @@ function Initialize-AzureDisks {
                     "New volume created; drive letter: $($Vol.Letter):, size: $($Vol.Size), file system: $($Vol.FS)" `
                     -Severity 1
             }
-            catch [System.Exception] {
+            catch {
                 Write-LogInfo -Message `
-                    "Exception occurred creating and formatting volume: $($Vol.Letter):, message: $($_.Message)" `
+                    "Exception occurred creating and formatting volume: $($Vol.Letter): $($PSItem.Exception.Message)" `
                     -Severity 2
             }
         }
