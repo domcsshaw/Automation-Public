@@ -501,7 +501,7 @@ function Initialize-AzureDisks {
 
     # There may be a CD-ROM attached if this is a new VM from a marketplace image; if so force it to Z:
     $CDDrive = Get-CimInstance -ClassName Win32_Volume -Filter "DriveType = 5"
-    if ($CDDrive.DriveLetter -eq 'E') {
+    if ($CDDrive) {
         $CDDrive | Set-CimInstance -Property @{DriveLetter ='Z:'}
         Write-LogInfo -Message 'Found a CD-ROM drive; driver letter reassigned to Z:' -Severity 1
     }
