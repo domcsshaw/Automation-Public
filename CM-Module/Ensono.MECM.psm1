@@ -57,7 +57,7 @@ function Write-LogInfo {
         [ValidateSet('1', '2', '3')]
         [string]
         $Severity,
-        
+
         [Parameter(Mandatory = $false)]
         [switch]
         $BlankLine = $false
@@ -473,7 +473,7 @@ function Enable-AzureTempDB {
     # Add the task
     Add-InstallTask -TaskName 'Start-SQL' `
         -StartupTask `
-        -ActionArgument "-File C:\Scripts\Start-SQL.ps1 -TempPath $($Control.AzureTempDrive)\TempDB" `
+        -ActionArgument "-File C:\Scripts\Start-SQL.ps1 -TempPath $($Control.AzureTempDrive)\SQLTempDB" `
         -TaskDescription 'Ensures TempDB directory exists on D:\ and starts SQL db service'
 }
 
@@ -707,8 +707,8 @@ function Get-IniContent {
     param (
         [ValidateNotNullOrEmpty()]
         [ValidateScript({(Test-Path $_) -and ((Get-Item $_).Extension -eq ".ini")})]
-        [Parameter(ValueFromPipeline = $True,
-            Mandatory = $True)]
+        [Parameter(ValueFromPipeline = $true,
+            Mandatory = $true)]
         [string]
         $FilePath
     )
@@ -765,7 +765,16 @@ function Get-IniContent {
 #>
 function Install-CMPrimarySite {
     [cmdletbinding()]
-    param ()
+    param (
+        [Parameter(Mandatory = $true)]
+        [bool]
+        $LocalSql,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(2016, 2017, 2019)]
+        [int]
+        $SqlVersion
+    )
 
     # Start MECM install processing
     Write-LogInfo -Message `
@@ -807,8 +816,60 @@ function Install-CMPrimarySite {
     $CMScriptContents = Get-IniContent -FilePath $CMScriptPath
     $CMScriptContents | Format-Table
 
-    # TODO: Do the install, get the return value
+    # Run 'setup downloader' to update any files
 
+
+    # Get local computer FQDN - required for multiple install options
+    $CompInfo = Get-ComputerInfo
+    $CompFQDN = "$($CompInfo.CsName).$($CompInfo.CsDomain)"
+    Write-LogInfo -Message "Retrieved fully-qualified hostname from local server: $CompFQDN" -Severity 1
+
+    # Set the ini file options - first the the raw file contents
+    $CMIni = Get-Content -Path $CMScriptPath -Raw
+
+    # Set site code and name from control
+    $CMIni -replace 'SiteCode=', "SiteCode=$($Control.SiteCode)"
+    $CMIni -replace 'SiteName=', "SiteName=$($Control.SiteName)"
+
+    # Set install location, SMS provider and downloads/pre-reqs path
+    $CMIni -replace 'SMSInstallDir=', "$($Control.InstallDrive)\Program Files\Microsoft Configuration Manager"
+    $CMIni -replace 'SDKServer=', "SDKServer=$CompFQDN"
+    $CMIni -replace 'PrerequisitePath=', "PrerequisitePath=$($Control.InstallDrive)\Downloads"
+
+    # Set MP options, if required
+    if ($Control.MP) {
+        $CMIni -replace 'ManagementPoint=', "ManagementPoint=$CompFQDN"
+    }
+    else {
+        $CMIni -replace 'ManagementPoint=', ''
+        $CMIni -replace 'ManagementPointProtocol=HTTP', ''
+    }
+
+    # Set DP options, if required
+    if ($Control.DP) {
+        $CMIni -replace 'DistributionPoint=', "DistributionPoint=$CompFQDN"
+    }
+    else {
+        $CMIni -replace 'DistributionPoint=', ''
+        $CMIni -replace 'DistributionPointProtocol=HTTP', ''
+        $CMIni -replace 'DistributionPointInstallIIS=0', ''
+    }
+
+    # Set SQL Server options
+    if ($LocalSql) {
+        $CMIni -replace 'SQLServerName=', "SQLServerName=$CompFQDN"
+    }
+    else {
+        $CMIni -replace 'SQLServerName=', "SQLServerName=$($Control.SQLServer))"
+    }
+    $CMIni -replace 'DatabaseName=', "DatabaseName=CM_$($Control.SiteCode)"
+
+    # Set cloud connector server
+    $CMIni -replace 'CloudConnectorServer=', "CloudConnectorServer=$CompFQDN"
+
+    $CMIni
+
+    # TODO: Do the install, get the return value
 }
 
 # End of internal functions *************************************************************************************************************************
@@ -978,14 +1039,6 @@ function Install-MECM {
     Write-LogInfo -Message 'Start proccessing MECM install actions...' -Severity 1
     Write-LogInfo -Message "Install-MECM mode is: $Mode" -Severity 1 -BlankLine
 
-    # CMOnly mode - start the MECM install and return
-    if ($Mode -eq 'CMOnly') {
-        Install-CMPrimarySite
-        return
-    }
-
-    # Otherwise continue
-
     # Set LocalSql if Control value is true
     if ($Control.LocalSql) {
         $LocalSql = $true
@@ -995,6 +1048,14 @@ function Install-MECM {
     if ($SqlVersion -eq 0) {
         $SqlVersion = $Control.SqlVersion
     }
+
+    # CMOnly mode - start the MECM install and return
+    if ($Mode -eq 'CMOnly') {
+        Install-CMPrimarySite -LocalSql $LocalSql -SqlVersion $SqlVersion
+        return
+    }
+
+    # Otherwise continue
 
     # Log the Sql Parameters
     Write-LogInfo -Message "The value of LocalSql is: $LocalSql" -Severity 1
@@ -1275,6 +1336,16 @@ function Install-SQLServer {
     $SQLSetupPath = "${SQLSourcePath}setup.exe"
     Write-LogInfo -Message "SQL Server setup file path: $SQLSetupPath" -Severity 1
 
+    # Pre-setup for Azure VM TempDB - create the TempDB folder and override the TempDB install file location
+    $SQLTempLoc = "$($Control.SQLDrTemp)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Data"
+    if ($Control.AzureVM) {
+        if (!(Test-Path -Path "$($Control.AzureTempDrive)\SQLTempDB")) {
+            New-Item -ItemType Directory -Path "$($Control.AzureTempDrive)\SQLTempDB"
+            Write-LogInfo -Message "Folder created for tempdb files: $($Control.AzureTempDrive)\SQLTempDB"
+        }
+        $SQLTempLoc = "$($Control.AzureTempDrive)\SQLTempDB"
+    }
+
     # Build command line parameters for SQL install
     Write-LogInfo -Message 'Building SQL Server install parameters...' -Severity 1
     $SQLOpQ = '/Q'
@@ -1288,8 +1359,8 @@ function Install-SQLServer {
     $SQLOpInstDir = "/INSTANCEDIR=`"$($Control.InstallDrive)\Program Files\Microsoft SQL Server`""
     $SQLOpDataDir = "/INSTALLSQLDATADIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server`""
     $SQLOpLogDir = "/SQLUSERDBLOGDIR=`"$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Data`""
-    $SQLOpTmpDir = "/SQLTEMPDBDIR=`"$($Control.SQLDrTemp)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Data`""
-    $SQLOpTmpLgDir = "/SQLTEMPDBLOGDIR=`"$($Control.SQLDrTemp)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Data`""
+    $SQLOpTmpDir = "/SQLTEMPDBDIR=`"$SQLTempLoc`""
+    $SQLOpTmpLgDir = "/SQLTEMPDBLOGDIR=`"$SQLTempLoc`""
     $SQLOpBkupDir = "/SQLBACKUPDIR=`"$($Control.SQLDrBkup)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Backup`""
     $SQLOpSAAccts = "/SQLSYSADMINACCOUNTS="
     foreach ($SAAcct in $Control.SQLSAAccts) {
@@ -1381,7 +1452,7 @@ function Install-SQLServer {
         Write-LogInfo -Message 'Error installing SQL Server' -Severity 3
     }
 
-    # For Azure VM - configuration for moving TempDB files to temporary storage
+    # For Azure VM - ensure configuration for moving TempDB files to temporary disk sticks
     # Check Azure VM
     if ($Control.AzureVM) {
         Enable-AzureTempDB
