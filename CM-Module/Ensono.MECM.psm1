@@ -755,6 +755,40 @@ function Get-IniContent {
     }
 }
 
+function Set-IniValue {
+    [cmdletbinding()]
+    param (
+        [ValidateNotNullOrEmpty()]
+        [Parameter(ValueFromPipeline = $true,
+            Mandatory = $true)]
+        [string]
+        $Content,
+
+        [ValidateNotNullOrEmpty()]
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Key,
+
+        [ValidateNotNullOrEmpty()]
+        [Parameter(Mandatory = $false)]
+        [string]
+        $Value = $null
+    )
+
+    # If a value is passed, add the value to the key
+    if ($Value) {
+        $Content = $Content -replace "$Key=", "$Key=$Value"
+        Write-LogInfo -Message "Ini value set to: $Key=$Value" -Severity 1
+    }
+    # If no value, delete the key from the content
+    else {
+        $Content = $Content | Where-Object {$_ -notmatch "$Key"}
+        Write-LogInfo -Message "Ini value removed: $Key=" -Severity 1
+    }
+    
+    return $Content
+}
+
 <#
     .SYNOPSIS
         Installs the MECM primary site
@@ -768,12 +802,7 @@ function Install-CMPrimarySite {
     param (
         [Parameter(Mandatory = $true)]
         [bool]
-        $LocalSql,
-
-        [Parameter(Mandatory = $true)]
-        [ValidateSet(2016, 2017, 2019)]
-        [int]
-        $SqlVersion
+        $LocalSql
     )
 
     # Start MECM install processing
@@ -813,10 +842,10 @@ function Install-CMPrimarySite {
 
 
     # Get the ini file contents so we can manipulate it
-    $CMScriptContents = Get-IniContent -FilePath $CMScriptPath
-    $CMScriptContents | Format-Table
+    # $CMScriptContents = Get-IniContent -FilePath $CMScriptPath
+    # $CMScriptContents | Format-Table
 
-    # Run 'setup downloader' to update any files
+    # TODO: Run 'setup downloader' to update any files
 
 
     # Get local computer FQDN - required for multiple install options
@@ -828,46 +857,47 @@ function Install-CMPrimarySite {
     $CMIni = Get-Content -Path $CMScriptPath -Raw
 
     # Set site code and name from control
-    $CMIni -replace 'SiteCode=', "SiteCode=$($Control.SiteCode)"
-    $CMIni -replace 'SiteName=', "SiteName=$($Control.SiteName)"
+    $CMIni = $CMIni | Set-IniValue -Key 'SiteCode' -Value $Control.SiteCode
+    $CMIni = $CMIni | Set-IniValue -Key 'SiteName' -Value $Control.SiteName
 
     # Set install location, SMS provider and downloads/pre-reqs path
-    $CMIni -replace 'SMSInstallDir=', "$($Control.InstallDrive)\Program Files\Microsoft Configuration Manager"
-    $CMIni -replace 'SDKServer=', "SDKServer=$CompFQDN"
-    $CMIni -replace 'PrerequisitePath=', "PrerequisitePath=$($Control.InstallDrive)\Downloads"
+    $CMIni = $CMIni | Set-IniValue -Key 'SMSInstallDir' `
+        -Value "$($Control.InstallDrive)\Program Files\Microsoft Configuration Manager"
+    $CMIni = $CMIni | Set-IniValue -Key 'SDKServer' -Value $CompFQDN
+    $CMIni = $CMIni | Set-IniValue -Key 'PrerequisitePath' -Value "$($Control.InstallDrive)\Downloads"
 
     # Set MP options, if required
     if ($Control.MP) {
-        $CMIni -replace 'ManagementPoint=', "ManagementPoint=$CompFQDN"
+        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint' -Value $CompFQDN
     }
     else {
-        $CMIni -replace 'ManagementPoint=', ''
-        $CMIni -replace 'ManagementPointProtocol=HTTP', ''
+        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint='
+        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPointProtocol=HTTP'
     }
 
     # Set DP options, if required
     if ($Control.DP) {
-        $CMIni -replace 'DistributionPoint=', "DistributionPoint=$CompFQDN"
+        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint' -Value $CompFQDN
     }
     else {
-        $CMIni -replace 'DistributionPoint=', ''
-        $CMIni -replace 'DistributionPointProtocol=HTTP', ''
-        $CMIni -replace 'DistributionPointInstallIIS=0', ''
+        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint='
+        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPointProtocol=HTTP'
+        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPointInstallIIS=0'
     }
 
     # Set SQL Server options
     if ($LocalSql) {
-        $CMIni -replace 'SQLServerName=', "SQLServerName=$CompFQDN"
+        $CMIni = $CMIni | Set-IniValue -Key 'SQLServerName' -Value $CompFQDN
     }
     else {
-        $CMIni -replace 'SQLServerName=', "SQLServerName=$($Control.SQLServer))"
+        $CMIni = $CMIni | Set-IniValue -Key 'SQLServerName' -Value $Control.SQLServer
     }
-    $CMIni -replace 'DatabaseName=', "DatabaseName=CM_$($Control.SiteCode)"
+    $CMIni = $CMIni | Set-IniValue -Key 'DatabaseName' -Value "CM_$($Control.SiteCode)"
 
     # Set cloud connector server
-    $CMIni -replace 'CloudConnectorServer=', "CloudConnectorServer=$CompFQDN"
+    $CMIni = $CMIni | Set-IniValue -Key 'CloudConnectorServer' -Value $CompFQDN
 
-    $CMIni
+    $CMIni | Set-Content -Path $CMScriptPath
 
     # TODO: Do the install, get the return value
 }
