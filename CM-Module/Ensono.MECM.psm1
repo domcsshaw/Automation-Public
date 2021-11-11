@@ -1081,7 +1081,7 @@ function Install-MECM {
 
     # CMOnly mode - start the MECM install and return
     if ($Mode -eq 'CMOnly') {
-        Install-CMPrimarySite -LocalSql $LocalSql -SqlVersion $SqlVersion
+        Install-CMPrimarySite -LocalSql $LocalSql
         return
     }
 
