@@ -761,7 +761,7 @@ function Set-IniValue {
         [ValidateNotNullOrEmpty()]
         [Parameter(ValueFromPipeline = $true,
             Mandatory = $true)]
-        [string]
+        [object[]]
         $Content,
 
         [ValidateNotNullOrEmpty()]
