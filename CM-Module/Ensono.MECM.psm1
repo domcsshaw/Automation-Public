@@ -64,7 +64,7 @@ function Write-LogInfo {
     )
 
     # Construct time stamp for log entry
-    $Time = -join @((Get-Date -Format 'HH:mm:ss.fff'), '+', (Get-WmiObject -Class Win32_TimeZone | Select-Object -ExpandProperty Bias))
+    $Time = -join @((Get-Date -Format 'HH:mm:ss.fff'), '+', (Get-CimInstance -ClassName Win32_TimeZone | Select-Object -ExpandProperty Bias))
     # Construct date for log entry
     $Date = (Get-Date -Format 'MM-dd-yyyy')
     # Construct context for log entry
@@ -782,8 +782,8 @@ function Set-IniValue {
     }
     # If no value, delete the key from the content
     else {
-        $Content = $Content | Where-Object {$_ -notmatch "$Key"}
-        Write-LogInfo -Message "Ini value removed: $Key=" -Severity 1
+        $Content = $Content | Where-Object {$_ -notmatch $Key}
+        Write-LogInfo -Message "Ini value removed: $Key" -Severity 1
     }
     
     return $Content
@@ -854,7 +854,7 @@ function Install-CMPrimarySite {
     Write-LogInfo -Message "Retrieved fully-qualified hostname from local server: $CompFQDN" -Severity 1
 
     # Set the ini file options - first the the raw file contents
-    $CMIni = Get-Content -Path $CMScriptPath -Raw
+    $CMIni = Get-Content -Path $CMScriptPath
 
     # Set site code and name from control
     $CMIni = $CMIni | Set-IniValue -Key 'SiteCode' -Value $Control.SiteCode
@@ -871,8 +871,7 @@ function Install-CMPrimarySite {
         $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint' -Value $CompFQDN
     }
     else {
-        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint='
-        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPointProtocol=HTTP'
+        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint'
     }
 
     # Set DP options, if required
@@ -880,9 +879,7 @@ function Install-CMPrimarySite {
         $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint' -Value $CompFQDN
     }
     else {
-        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint='
-        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPointProtocol=HTTP'
-        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPointInstallIIS=0'
+        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint'
     }
 
     # Set SQL Server options
