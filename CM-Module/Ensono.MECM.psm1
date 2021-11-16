@@ -647,112 +647,24 @@ function Invoke-SqlCommand() {
     $Command.CommandTimeout = $Timeout
 
     # Run query
+    $Result = $Command.ExecuteNonQuery()
+
+    <# 
     $Adapter = New-Object System.Data.SqlClient.SqlDataAdapter $Command
     $Dataset = New-Object System.Data.DataSet
     $Adapter.Fill($Dataset) | Out-Null
 
-    # Return the first collection of results or an empty array
+    Return the first collection of results or an empty array
     if ($null -ne $Dataset.Tables[0]) {
         $Table = $Dataset.Tables[0]
     }
     elseif ($Table.Rows.Count -eq 0) {
         $Table = New-Object System.Collections.ArrayList
     }
+    #>
 
     $Cnn.Close()
-    return $Table
-}
-
-<#  
-    .SYNOPSIS 
-        Gets the content of an INI file  
-    .DESCRIPTION
-        Gets the content of an INI file and returns it as a hashtable.
-    .NOTES
-        Author      : Oliver Lipkau <oliver@lipkau.net>
-        Blog        : http://oliver.lipkau.net/blog/
-        Source      : https://github.com/lipkau/PsIni
-                    : http://gallery.technet.microsoft.com/scriptcenter/ea40c1ef-c856-434b-b8fb-ebd7a76e8d91
-        Version     : 1.0 - 2010/03/12 - Initial release  
-                    : 1.1 - 2014/12/11 - Typo (Thx SLDR), Typo (Thx Dave Stiff) 
-                    : 1.2 - 2020/06/23 - Edited by Dominic Shaw (Ensono) to fit this module
-        #Requires -Version 2.0
-    .INPUTS
-        System.String
-    .OUTPUTS
-        System.Collections.Hashtable
-    .PARAMETER FilePath
-        Specifies the path to the input file.  
-    .EXAMPLE
-        $FileContent = Get-IniContent "C:\myinifile.ini"
-        -----------
-        Description
-        Saves the content of the C:\myinifile.ini in a hashtable called $FileContent
-    .EXAMPLE
-        $inifilepath | $FileContent = Get-IniContent
-        -----------
-        Description
-        Gets the content of the ini file passed through the pipe into a hashtable called $FileContent
-    .EXAMPLE
-        C:\PS>$FileContent = Get-IniContent "C:\settings.ini"
-        C:\PS>$FileContent["Section"]["Key"]
-        -----------
-        Description
-        Returns the key "Key" of the section "Section" from the C:\settings.ini file
-    .LINK
-        Out-IniFile
-#>
-function Get-IniContent {
-    [cmdletbinding()]
-    param (
-        [ValidateNotNullOrEmpty()]
-        [ValidateScript({(Test-Path $_) -and ((Get-Item $_).Extension -eq ".ini")})]
-        [Parameter(ValueFromPipeline = $true,
-            Mandatory = $true)]
-        [string]
-        $FilePath
-    )
-
-    begin {
-        Write-LogInfo -Message 'Started getting an ini file...' -Severity 1
-    }
-    process
-    {
-        Write-LogInfo -Message "Processing ini file: $FilePath" -Severity 1
-
-        $Ini = [ordered]@{}
-        switch -regex -file $FilePath {
-            "^\[(.+)\]$" { # Section
-                $Section = $Matches[1]
-                $Ini[$Section] = @{}
-                $CommentCount = 0
-            }
-            "^(;.*)$" { # Comment
-                if (!($Section)) {
-                    $Section = "No-Section"
-                    $Ini[$Section] = @{}
-                }
-                $Value = $Matches[1]
-                $CommentCount = $CommentCount + 1
-                $Name = "Comment" + $CommentCount
-                $Ini[$Section][$Name] = $Value
-            }
-            "(.+?)\s*=\s*(.*)" { # Key
-                if (!($Section))
-                {
-                    $Section = "No-Section"
-                    $Ini[$Section] = @{}  
-                }
-                $Name,$Value = $Matches[1..2]
-                $Ini[$Section][$Name] = $Value
-            }
-        }
-        Write-LogInfo -Message "Finished processing ini file: $FilePath" -Severity 1
-        return $Ini  
-    }
-    end {
-        Write-LogInfo -Message "Finished getting ini file" -Severity 1
-    }
+    return $Result
 }
 
 <#
@@ -884,34 +796,43 @@ function Install-CMPrimarySite {
 
     # Run SQL commands to pre-create the CM database here
     Write-LogInfo -Message "Pre-creating the MECM database" -Severity 1
-    $SQLCreateDBQry = "
-        CREATE DATABASE CM_$($Control.SiteCode) ON
-        PRIMARY (NAME = CM_$($Control.SiteCode)-1,FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)-1.mdf',
-            SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
+    $SQLCreateDBQry = "CREATE DATABASE CM_$($Control.SiteCode)
+    ON 
+    PRIMARY 
+        (NAME = CM_$($Control.SiteCode)_1, 
+        FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_1.mdf', 
+        SIZE = $($Control.SQLCMDBFileSize), 
+        MAXSIZE = Unlimited, 
+        FILEGROWTH = $($Control.SQLCMDBFileGrw))"
     
     # For multiple data files add these to the query statement
     if ($Control.SQLCMDBFiles -gt 1) {
-        for ($i = 2; $i -gt $Control.SQLCMDBFiles; $i++) {
+        for ($i = 2; $i -le $Control.SQLCMDBFiles; $i++) {
             $SQLCreateDBQry += "
-                (NAME = CM_$($Control.SiteCode)-$i,FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)-$i.mdf',
-                    SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
+        (NAME = CM_$($Control.SiteCode)_$i, 
+        FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_$i.mdf',
+        SIZE = $($Control.SQLCMDBFileSize), 
+        MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
         }
     }
 
     # Add the log file to the query statement
     $SQLCreateDBQry += "
-        LOG ON
-        (NAME = CM_$($Control.SiteCode)-log, FILENAME = '${SQLLogFilePath}\CM_$($Control.SiteCode).ldf',
-            SIZE = $($Control.SQLCMDBLogFileSize), MAXSIZE = $($Control.SQLCMDBLogFileSize),
-            FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
+    LOG ON
+        (NAME = CM_$($Control.SiteCode)_log, 
+        FILENAME = '${SQLLogFilePath}\CM_$($Control.SiteCode).ldf',
+        SIZE = $($Control.SQLCMDBLogFileSize), 
+        MAXSIZE = $($Control.SQLCMDBLogFileSize),
+        FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
+
     Write-LogInfo -Message "Create DB query: $SQLCreateDBQry" -Severity 1
 
     # Run the create database query statement
-    $SQLCreateDBRes = Invoke-SqlCommand -Server $SQLFQDN `
+    $SQLCreateDBResult = Invoke-SqlCommand -Server $SQLFQDN `
         -Database 'master' `
         -UseWindowsAuth `
         -Query $SQLCreateDBQry
-    $SQLCreateDBRes
+    $SQLCreateDBResult
 
     # Set the ini file options - first get the file contents
     $CMIni = Get-Content -Path $CMScriptPath
