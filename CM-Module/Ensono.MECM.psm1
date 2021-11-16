@@ -82,15 +82,15 @@ function Write-LogInfo {
         # Wait a bit
         Start-Sleep -Milliseconds 500
 
-        # Try again
-        Add-Content -Value $LogText -LiteralPath $LogFile -ErrorAction SilentlyContinue
+        # Recursive call - try again
+        Write-LogInfo -Message $Message -Severity $Severity -BlankLine $BlankLine
     }
 
     # Write message to output
     switch ($Severity) {
-        1 { Write-Host -Object $Message }
-        2 { Write-Warning -Message $Message }
-        3 { throw $Message }
+        1 {Write-Host -Object $Message}
+        2 {Write-Warning -Message $Message}
+        3 {throw $Message}
     }
 
     # Write a blank line, if required
@@ -802,11 +802,11 @@ function Install-CMPrimarySite {
     # For multiple data files add these to the query statement
     for ($i = 2; $i -le $Control.SQLCMDBFiles; $i++) {
         $SQLCreateDBCmd += ", 
-            (NAME = CM_$($Control.SiteCode)_$i, 
-            FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_$i.mdf',
-            SIZE = $($Control.SQLCMDBFileSize), 
-            MAXSIZE = Unlimited, 
-            FILEGROWTH = $($Control.SQLCMDBFileGrw))"
+        (NAME = CM_$($Control.SiteCode)_$i, 
+        FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_$i.mdf',
+        SIZE = $($Control.SQLCMDBFileSize), 
+        MAXSIZE = Unlimited, 
+        FILEGROWTH = $($Control.SQLCMDBFileGrw))"
     }
 
     # Add the log file to the query statement
@@ -826,7 +826,7 @@ function Install-CMPrimarySite {
         -Database 'master' `
         -UseWindowsAuth `
         -Query $SQLCreateDBCmd
-    $SQLCreateDBResult
+    Write-LogInfo -Message "Create DB command result was: $SQLCreateDBResult" -Severity 1
 
     # Set the ini file options - first get the file contents
     $CMIni = Get-Content -Path $CMScriptPath
@@ -870,9 +870,24 @@ function Install-CMPrimarySite {
     $CMIni | Set-Content -Path $CMScriptPath
     Write-LogInfo -Message "Saved MECM install ini file values" -Severity 1 -BlankLine
 
-    # TODO: Do the install, get the return value
-    Write-LogInfo -Message "$CMSetupPath /HIDDEN /SCRIPT $CMScriptPath" -Severity 1 -BlankLine
-    # & $CMSetupPath /HIDDEN /SCRIPT $CMScriptPath
+    # MECM install command line options
+    $CMOps = @('/HIDDEN', 
+        "/SCRIPT `"$CMScriptPath`"")
+
+    # Run the MECM installer
+    Write-LogInfo -Message 'Run MECM command line install...' -Severity 1
+    Write-LogInfo -Message "${CMSetupPath} ${CMOps}" -Severity 1 -BlankLine
+    $CMResult = Start-Process -FilePath "$CMSetupPath" -ArgumentList $CMOps -Wait -PassThru
+    Write-LogInfo -Message "MECM install exit code: $($CMResult.ExitCode)" -Severity 1
+    Write-LogInfo -Message 'MECM install completed' -Severity 1
+
+    # Process result
+    if ($CMResult.ExitCode -in 0, 1641, 3010) {
+        Write-LogInfo -Message 'Successfully installed MECM primary site' -Severity 1 -BlankLine
+    }
+    else {
+        Write-LogInfo -Message 'Error installing MECM primary site' -Severity 3
+    }
 }
 
 # End of internal functions *************************************************************************************************************************
