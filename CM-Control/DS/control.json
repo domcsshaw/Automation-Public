@@ -112,17 +112,17 @@
         "SHAW\\g-d-delg-adm-sql"
     ],
 
-    "SQLTmpFiles" : 4,
-    "SQLTmpFileSize" : 500,
-    "SQLTmpFileGrw": 500,
-    "SQLTmpLogFileSize": 1500,
-    "SQLTmpLogFileGrw": 500,
+    "SQLTmpFiles" : 2,
+    "SQLTmpFileSize" : 1024,
+    "SQLTmpFileGrw": 512,
+    "SQLTmpLogFileSize": 1024,
+    "SQLTmpLogFileGrw": 512,
 
-    "SQLCMDBFiles" : 4,
-    "SQLCMDBFileSize" : 2000,
-    "SQLCMDBFileGrw": 500,
-    "SQLCMDBLogFileSize": 2000,
-    "SQLCMDBLogFileGrw": 500,
+    "SQLCMDBFiles" : 2,
+    "SQLCMDBFileSize" : 3072,
+    "SQLCMDBFileGrw": 1024,
+    "SQLCMDBLogFileSize": 1024,
+    "SQLCMDBLogFileGrw": 512,
 
     "SQLMinMemory" : 2048,
     "SQLMaxMemory" : 4096,

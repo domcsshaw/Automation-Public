@@ -755,13 +755,32 @@ function Get-IniContent {
     }
 }
 
+<#
+    .SYNOPSIS
+        Sets a particular value in an ini file given the key or deletes all keys that contain a string
+    .DESCRIPTION
+        This function will set a value against the given key in an ini file or alternatively delete all keys
+        that contain the value passed to the 'Key' parameter. The content of the ini file should be passed
+        to the 'Content' parameter (as an object array). If the 'Value' parameter is omitted the function
+        will delete content, else it will set the value.
+    .PARAMETER Content
+        The content of the ini file as an array of objects, the modified content will be returned.
+    .PARAMETER Key
+        A string for the ini key that will be set or deleted. For setting a value this needs to be an exact
+        match for the ini file key, for deleting content any key that contains this string will be removed.
+    .PARAMETER Value
+        (Optional) A string that is the value to set in the ini file. If omitted keys will be deleted.
+    .INPUTS
+        System.Array
+        System.String
+    .OUTPUTS
+        System.Array
+#>
 function Set-IniValue {
     [cmdletbinding()]
     param (
-        [ValidateNotNullOrEmpty()]
-        [Parameter(ValueFromPipeline = $true,
-            Mandatory = $true)]
-        [object[]]
+        [Parameter(Mandatory = $true)]
+        [array]
         $Content,
 
         [ValidateNotNullOrEmpty()]
@@ -785,7 +804,7 @@ function Set-IniValue {
         $Content = $Content | Where-Object {$_ -notmatch $Key}
         Write-LogInfo -Message "Ini value removed: $Key" -Severity 1
     }
-    
+
     return $Content
 }
 
@@ -831,72 +850,83 @@ function Install-CMPrimarySite {
 
     # Set the path to MECM script file
     $CMScriptPath = "$SourcePath\CMScript\setup.ini"
-    Write-LogInfo -Message "MECM install script file is: $CMScriptPath" -Severity 1
+    Write-LogInfo -Message "MECM install script path: $CMScriptPath" -Severity 1
 
     # Create the downloads directory, if it doesn't already exist
     if (!(Test-Path -Path "$($Control.InstallDrive)\Downloads")) {
         [void](New-Item -Path "$($Control.InstallDrive)\" -Name 'Downloads' -ItemType Directory)
     }
 
-    # TODO: Run SQL commands to pre-create the CM database here
-
-
-    # Get the ini file contents so we can manipulate it
-    # $CMScriptContents = Get-IniContent -FilePath $CMScriptPath
-    # $CMScriptContents | Format-Table
-
-    # TODO: Run 'setup downloader' to update any files
-
-
     # Get local computer FQDN - required for multiple install options
     $CompInfo = Get-ComputerInfo
     $CompFQDN = "$($CompInfo.CsName).$($CompInfo.CsDomain)"
     Write-LogInfo -Message "Retrieved fully-qualified hostname from local server: $CompFQDN" -Severity 1
 
+    $SQLFQDN = $CompFQDN
+    if (!$LocalSql) {$SQLFQDN = $Control.SQLServer}
+    Write-LogInfo -Message "SQL Server for install is: $SQLFQDN" -Severity 1
+
+    # TODO: Run SQL commands to pre-create the CM database here
+    Write-LogInfo -Message "Pre-creating the MECM database" -Severity 1
+    $SQLCreateDBQry = "CREATE DATABASE CM_$($Control.SiteCode)
+        ON
+        (NAME = CM_$($Control.SiteCode)_1,FILENAME = 'CM_$($Control.SiteCode)_1.mdf',
+            SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))
+        LOG ON
+        (NAME = CM_$($Control.SiteCode)_log, FILENAME = 'CM_$($Control.SiteCode).ldf', SIZE = $($Control.SQLCMDBLogFileSize), 
+            MAXSIZE = $($Control.SQLCMDBLogFileSize), FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
+    Write-LogInfo -Message "Create DB query: $SQLCreateDBQry" -Severity 1
+    $SQLCreateDBRes = Invoke-SqlCommand -Server $SQLFQDN `
+        -Database 'master' `
+        -UseWindowsAuth `
+        -Query $SQLCreateDBQry
+    $SQLCreateDBRes
+
     # Set the ini file options - first the the raw file contents
     $CMIni = Get-Content -Path $CMScriptPath
+    Write-LogInfo -Message "Loaded MECM install ini file from: $CMScriptPath" -Severity 1
 
     # Set site code and name from control
-    $CMIni = $CMIni | Set-IniValue -Key 'SiteCode' -Value $Control.SiteCode
-    $CMIni = $CMIni | Set-IniValue -Key 'SiteName' -Value $Control.SiteName
+    Write-LogInfo -Message 'Setting MECM install ini file values...' -Severity 1
+    $CMIni = Set-IniValue -Content $CMIni -Key 'SiteCode' -Value $Control.SiteCode
+    $CMIni = Set-IniValue -Content $CMIni -Key 'SiteName' -Value $Control.SiteName
 
     # Set install location, SMS provider and downloads/pre-reqs path
-    $CMIni = $CMIni | Set-IniValue -Key 'SMSInstallDir' `
+    $CMIni = Set-IniValue -Content $CMIni -Key 'SMSInstallDir' `
         -Value "$($Control.InstallDrive)\Program Files\Microsoft Configuration Manager"
-    $CMIni = $CMIni | Set-IniValue -Key 'SDKServer' -Value $CompFQDN
-    $CMIni = $CMIni | Set-IniValue -Key 'PrerequisitePath' -Value "$($Control.InstallDrive)\Downloads"
+    $CMIni = Set-IniValue -Content $CMIni -Key 'SDKServer' -Value $CompFQDN
+    $CMIni = Set-IniValue -Content $CMIni -Key 'PrerequisitePath' -Value "$($Control.InstallDrive)\Downloads"
 
     # Set MP options, if required
     if ($Control.MP) {
-        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint' -Value $CompFQDN
+        $CMIni = Set-IniValue -Content $CMIni -Key 'ManagementPoint' -Value $CompFQDN
     }
     else {
-        $CMIni = $CMIni | Set-IniValue -Key 'ManagementPoint'
+        $CMIni = Set-IniValue -Content $CMIni -Key 'ManagementPoint'
     }
 
     # Set DP options, if required
     if ($Control.DP) {
-        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint' -Value $CompFQDN
+        $CMIni = Set-IniValue -Content $CMIni -Key 'DistributionPoint' -Value $CompFQDN
     }
     else {
-        $CMIni = $CMIni | Set-IniValue -Key 'DistributionPoint'
+        $CMIni = Set-IniValue -Content $CMIni -Key 'DistributionPoint'
     }
 
     # Set SQL Server options
-    if ($LocalSql) {
-        $CMIni = $CMIni | Set-IniValue -Key 'SQLServerName' -Value $CompFQDN
-    }
-    else {
-        $CMIni = $CMIni | Set-IniValue -Key 'SQLServerName' -Value $Control.SQLServer
-    }
-    $CMIni = $CMIni | Set-IniValue -Key 'DatabaseName' -Value "CM_$($Control.SiteCode)"
+    $CMIni = Set-IniValue -Content $CMIni -Key 'SQLServerName' -Value $SQLFQDN
+    $CMIni = Set-IniValue -Content $CMIni -Key 'DatabaseName' -Value "CM_$($Control.SiteCode)"
 
     # Set cloud connector server
-    $CMIni = $CMIni | Set-IniValue -Key 'CloudConnectorServer' -Value $CompFQDN
+    $CMIni = Set-IniValue -Content $CMIni -Key 'CloudConnectorServer' -Value $CompFQDN
 
+    # Write back the new settings to the ini file on disk
     $CMIni | Set-Content -Path $CMScriptPath
+    Write-LogInfo -Message "Saved MECM install ini file values" -Severity 1 -BlankLine
 
     # TODO: Do the install, get the return value
+    Write-LogInfo -Message "$CMSetupPath /HIDDEN /SCRIPT $CMScriptPath" -Severity 1 -BlankLine
+    # & $CMSetupPath /HIDDEN /SCRIPT $CMScriptPath
 }
 
 # End of internal functions *************************************************************************************************************************
