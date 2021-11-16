@@ -641,29 +641,23 @@ function Invoke-SqlCommand() {
     $Cnn = New-Object System.Data.SqlClient.SqlConnection($CnnStr)
     $Cnn.Open()
 
-    # Build query object
+    # Build SqlCommand object
     $Command = $Cnn.CreateCommand()
     $Command.CommandText = $Query
     $Command.CommandTimeout = $Timeout
 
-    # Run query
-    $Result = $Command.ExecuteNonQuery()
-
-    <# 
-    $Adapter = New-Object System.Data.SqlClient.SqlDataAdapter $Command
-    $Dataset = New-Object System.Data.DataSet
-    $Adapter.Fill($Dataset) | Out-Null
-
-    Return the first collection of results or an empty array
-    if ($null -ne $Dataset.Tables[0]) {
-        $Table = $Dataset.Tables[0]
+    # Run SqlCommand - non-query
+    try {
+        $Result = $Command.ExecuteNonQuery()
     }
-    elseif ($Table.Rows.Count -eq 0) {
-        $Table = New-Object System.Collections.ArrayList
+    catch {
+        Write-LogInfo -Message `
+            "Exception occurred running a SQL command: $($PSItem.Exception.Message)" `
+            -Severity 3
     }
-    #>
 
     $Cnn.Close()
+
     return $Result
 }
 
@@ -796,7 +790,7 @@ function Install-CMPrimarySite {
 
     # Run SQL commands to pre-create the CM database here
     Write-LogInfo -Message "Pre-creating the MECM database" -Severity 1
-    $SQLCreateDBQry = "CREATE DATABASE CM_$($Control.SiteCode)
+    $SQLCreateDBCmd = "CREATE DATABASE CM_$($Control.SiteCode)
     ON 
     PRIMARY 
         (NAME = CM_$($Control.SiteCode)_1, 
@@ -804,20 +798,19 @@ function Install-CMPrimarySite {
         SIZE = $($Control.SQLCMDBFileSize), 
         MAXSIZE = Unlimited, 
         FILEGROWTH = $($Control.SQLCMDBFileGrw))"
-    
+
     # For multiple data files add these to the query statement
-    if ($Control.SQLCMDBFiles -gt 1) {
-        for ($i = 2; $i -le $Control.SQLCMDBFiles; $i++) {
-            $SQLCreateDBQry += "
-        (NAME = CM_$($Control.SiteCode)_$i, 
-        FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_$i.mdf',
-        SIZE = $($Control.SQLCMDBFileSize), 
-        MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
-        }
+    for ($i = 2; $i -le $Control.SQLCMDBFiles; $i++) {
+        $SQLCreateDBCmd += ", 
+            (NAME = CM_$($Control.SiteCode)_$i, 
+            FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)_$i.mdf',
+            SIZE = $($Control.SQLCMDBFileSize), 
+            MAXSIZE = Unlimited, 
+            FILEGROWTH = $($Control.SQLCMDBFileGrw))"
     }
 
     # Add the log file to the query statement
-    $SQLCreateDBQry += "
+    $SQLCreateDBCmd += "
     LOG ON
         (NAME = CM_$($Control.SiteCode)_log, 
         FILENAME = '${SQLLogFilePath}\CM_$($Control.SiteCode).ldf',
@@ -825,13 +818,14 @@ function Install-CMPrimarySite {
         MAXSIZE = $($Control.SQLCMDBLogFileSize),
         FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
 
-    Write-LogInfo -Message "Create DB query: $SQLCreateDBQry" -Severity 1
+    Write-LogInfo -Message "Create DB command will be:" -Severity 1
+    Write-LogInfo -Message "$SQLCreateDBCmd" -Severity 1
 
     # Run the create database query statement
     $SQLCreateDBResult = Invoke-SqlCommand -Server $SQLFQDN `
         -Database 'master' `
         -UseWindowsAuth `
-        -Query $SQLCreateDBQry
+        -Query $SQLCreateDBCmd
     $SQLCreateDBResult
 
     # Set the ini file options - first get the file contents
