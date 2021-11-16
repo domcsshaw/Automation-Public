@@ -821,7 +821,12 @@ function Install-CMPrimarySite {
     param (
         [Parameter(Mandatory = $true)]
         [bool]
-        $LocalSql
+        $LocalSql,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(2016, 2017, 2019)]
+        [int]
+        $SqlVersion
     )
 
     # Start MECM install processing
@@ -862,27 +867,53 @@ function Install-CMPrimarySite {
     $CompFQDN = "$($CompInfo.CsName).$($CompInfo.CsDomain)"
     Write-LogInfo -Message "Retrieved fully-qualified hostname from local server: $CompFQDN" -Severity 1
 
+    # Set variables for SQL so the CM DB can be created (we are assuming SQL is installed and available here)
     $SQLFQDN = $CompFQDN
     if (!$LocalSql) {$SQLFQDN = $Control.SQLServer}
     Write-LogInfo -Message "SQL Server for install is: $SQLFQDN" -Severity 1
 
-    # TODO: Run SQL commands to pre-create the CM database here
+    # Use the SQL version to determine the data and log file paths for DB files
+    $SQLVerInstDir = ''
+    switch ($SqlVersion) {
+        2016 {$SQLVerInstDir = 'MSSQL13.MSSQLSERVER'}
+        2017 {$SQLVerInstDir = 'MSSQL14.MSSQLSERVER'}
+        2019 {$SQLVerInstDir = 'MSSQL15.MSSQLSERVER'}
+    }
+    $SQLDataFilePath = "$($Control.SQLDrData)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA"
+    $SQLLogFilePath = "$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA"
+
+    # Run SQL commands to pre-create the CM database here
     Write-LogInfo -Message "Pre-creating the MECM database" -Severity 1
-    $SQLCreateDBQry = "CREATE DATABASE CM_$($Control.SiteCode)
-        ON
-        (NAME = CM_$($Control.SiteCode)_1,FILENAME = 'CM_$($Control.SiteCode)_1.mdf',
-            SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))
+    $SQLCreateDBQry = "
+        CREATE DATABASE CM_$($Control.SiteCode) ON
+        PRIMARY (NAME = CM_$($Control.SiteCode)-1,FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)-1.mdf',
+            SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
+    
+    # For multiple data files add these to the query statement
+    if ($Control.SQLCMDBFiles -gt 1) {
+        for ($i = 2; $i -gt $Control.SQLCMDBFiles; $i++) {
+            $SQLCreateDBQry += "
+                (NAME = CM_$($Control.SiteCode)-$i,FILENAME = '${SQLDataFilePath}\CM_$($Control.SiteCode)-$i.mdf',
+                    SIZE = $($Control.SQLCMDBFileSize), MAXSIZE = Unlimited, FILEGROWTH = $($Control.SQLCMDBFileGrw))"
+        }
+    }
+
+    # Add the log file to the query statement
+    $SQLCreateDBQry += "
         LOG ON
-        (NAME = CM_$($Control.SiteCode)_log, FILENAME = 'CM_$($Control.SiteCode).ldf', SIZE = $($Control.SQLCMDBLogFileSize), 
-            MAXSIZE = $($Control.SQLCMDBLogFileSize), FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
+        (NAME = CM_$($Control.SiteCode)-log, FILENAME = '${SQLLogFilePath}\CM_$($Control.SiteCode).ldf',
+            SIZE = $($Control.SQLCMDBLogFileSize), MAXSIZE = $($Control.SQLCMDBLogFileSize),
+            FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
     Write-LogInfo -Message "Create DB query: $SQLCreateDBQry" -Severity 1
+
+    # Run the create database query statement
     $SQLCreateDBRes = Invoke-SqlCommand -Server $SQLFQDN `
         -Database 'master' `
         -UseWindowsAuth `
         -Query $SQLCreateDBQry
     $SQLCreateDBRes
 
-    # Set the ini file options - first the the raw file contents
+    # Set the ini file options - first get the file contents
     $CMIni = Get-Content -Path $CMScriptPath
     Write-LogInfo -Message "Loaded MECM install ini file from: $CMScriptPath" -Severity 1
 
@@ -1108,7 +1139,7 @@ function Install-MECM {
 
     # CMOnly mode - start the MECM install and return
     if ($Mode -eq 'CMOnly') {
-        Install-CMPrimarySite -LocalSql $LocalSql
+        Install-CMPrimarySite -LocalSql $LocalSql -SqlVersion $SqlVersion
         return
     }
 
@@ -1116,7 +1147,7 @@ function Install-MECM {
 
     # Log the Sql Parameters
     Write-LogInfo -Message "The value of LocalSql is: $LocalSql" -Severity 1
-    Write-LogInfo -Message "SQL Server version to be installed is: $SQLVersion" -Severity 1
+    Write-LogInfo -Message "SQL Server version to be installed is: $SqlVersion" -Severity 1
 
     # Validate MECM specific control parameters
     Confirm-CMValues
@@ -1414,8 +1445,8 @@ function Install-SQLServer {
     $SQLOpInstNm = '/INSTANCENAME=MSSQLSERVER'
     $SQLOpCollatn = '/SQLCOLLATION="SQL_Latin1_General_CP1_CI_AS"'
     $SQLOpInstDir = "/INSTANCEDIR=`"$($Control.InstallDrive)\Program Files\Microsoft SQL Server`""
-    $SQLOpDataDir = "/INSTALLSQLDATADIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server`""
-    $SQLOpLogDir = "/SQLUSERDBLOGDIR=`"$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Data`""
+    $SQLOpDataDir = "/INSTALLSQLDATADIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
+    $SQLOpLogDir = "/SQLUSERDBLOGDIR=`"$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
     $SQLOpTmpDir = "/SQLTEMPDBDIR=`"$SQLTempLoc`""
     $SQLOpTmpLgDir = "/SQLTEMPDBLOGDIR=`"$SQLTempLoc`""
     $SQLOpBkupDir = "/SQLBACKUPDIR=`"$($Control.SQLDrBkup)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Backup`""
