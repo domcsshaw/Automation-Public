@@ -1359,7 +1359,7 @@ function Install-SQLServer {
     if ($Control.AzureVM) {
         if (!(Test-Path -Path "$($Control.AzureTempDrive)\SQLTempDB")) {
             New-Item -ItemType Directory -Path "$($Control.AzureTempDrive)\SQLTempDB"
-            Write-LogInfo -Message "Folder created for tempdb files: $($Control.AzureTempDrive)\SQLTempDB"
+            Write-LogInfo -Message "Folder created for tempdb files: $($Control.AzureTempDrive)\SQLTempDB" -Severity 1
         }
         $SQLTempLoc = "$($Control.AzureTempDrive)\SQLTempDB"
     }
