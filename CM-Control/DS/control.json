@@ -11,7 +11,8 @@
         "RDC",
         "UpdateServices-RSAT",
         "UpdateServices-API",
-        "UpdateServices-UI"
+        "UpdateServices-UI",
+        "RSAT-AD-PowerShell"
     ],
 
     "MP": true,
@@ -60,6 +61,7 @@
 
     "AzureVM": true,
     "AzureTempDrive": "D:",
+    "CMAdminAc": "SHAW\\svc-cm-install",
 
     "DiskLayout": [
         {

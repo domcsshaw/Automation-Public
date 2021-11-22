@@ -11,6 +11,11 @@
         (Optional) The local folder path to sync the source files to for install, defaults to C:\CM-Install.
 #>
 param (
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [securestring]
+    $AdminPassword,
+
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
@@ -56,6 +61,9 @@ Invoke-WebRequest -Uri "${ModuleURL}/Ensono.MECM.psm1" -OutFile "$LocalPath\Modu
 if ($EnvironmentRef) {
     Invoke-WebRequest -Uri "${ControlURL}/${EnvironmentRef}/control.json" -OutFile "$LocalPath\Module\control.json"
 }
+
+# Write out the admin password (encrypted) that has been passed in - we need this for later
+$AdminPassword | ConvertFrom-SecureString | Set-Content -Path "$LocalPath\Module\admin.txt"
 
 # Import the MECM module
 Import-Module -Name "$LocalPath\Module\Ensono.MECM.psd1"

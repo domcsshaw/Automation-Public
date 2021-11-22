@@ -1,5 +1,6 @@
 
 # Module initialization ************************************************************************************************************************
+# This code runs when the module is imported into the PS session
 
 # Set error preference to stop execution
 $ErrorActionPreference = "Stop"
@@ -14,7 +15,7 @@ $LogFile = "${LogPath}\install-mecm.log"
 # Source path
 $SourcePath = "${RootPath}\Source"
 
-# Log files folder test,$PSScriptRoot + create if not found
+# Log files folder test + create if not found
 if (!(Test-Path -Path $LogPath)) {
     [void](New-Item -Path $RootPath -Name LogFiles -ItemType Directory)
 }
@@ -30,6 +31,27 @@ $Control = Get-Content -Path "${PSScriptRoot}\control.json" | ConvertFrom-Json
 # End of module initialization *****************************************************************************************************************
 
 # Internal functions ***************************************************************************************************************************
+
+<#
+    .SYNOPSIS
+        Runs at every entry point to the module, writes out the module version and reloads 'control' file.
+#>
+function Initialize-Session {
+    [cmdletbinding()]
+    param ()
+
+    # Set error preference to stop execution
+    $ErrorActionPreference = "Stop"
+
+    # Write some info to the console
+    $Version = (Get-Module -Name Ensono.MECM).Version.ToString()
+    Write-LogInfo -Message "Ensono.MECM Powershell module, version: $Version" -Severity 1
+
+    # Read JSON parameters
+    $Control = Get-Content -Path "${PSScriptRoot}\control.json" | ConvertFrom-Json
+    Write-LogInfo -Message "Reloaded control file from: ${PSScriptRoot}" -Severity 1
+    $Control
+}
 
 <#
     .SYNOPSIS
@@ -73,18 +95,7 @@ function Write-LogInfo {
     $LogText = "<![LOG[$($Message)]LOG]!><time=""$($Time)"" date=""$($Date)"" component=""Install-MECM"" context=""$($Context)"" type=""$($Severity)"" thread=""$($PID)"" file="""">"
 
     # Add value to log file
-    try {
-        Add-Content -Value $LogText -LiteralPath $LogFile -ErrorAction Stop
-    }
-    catch {
-        Write-Warning -Message 'Unable to append log entry to log file'
-
-        # Wait a bit
-        Start-Sleep -Milliseconds 500
-
-        # Recursive call - try again
-        Write-LogInfo -Message $Message -Severity $Severity -BlankLine $BlankLine
-    }
+    Add-Content -Path $LogFile -Value $LogText
 
     # Write message to output
     switch ($Severity) {
@@ -474,7 +485,7 @@ function Enable-AzureTempDB {
     Add-InstallTask -TaskName 'Start-SQL' `
         -StartupTask `
         -ActionArgument "-File C:\Scripts\Start-SQL.ps1 -TempPath $($Control.AzureTempDrive)\SQLTempDB" `
-        -TaskDescription 'Ensures TempDB directory exists on D:\ and starts SQL db service'
+        -TaskDescription 'Ensures SQLTempDB directory exists on D:\ and starts SQL db service'
 }
 
 <#
@@ -565,12 +576,11 @@ function Initialize-AzureDisks {
 
 <#
     .SYNOPSIS
-        Performs a SQL query and returns an array of PSObjects.
-    .NOTES
-        Author: Jourdan Templeton - hello@jourdant.me
-        Edited by: Dominic Shaw (Ensono).
-    .LINK 
-        https://blog.jourdant.me/post/simple-sql-in-powershell
+        Performs a non-query SQL command using the .NET SqlClient and returns the result
+    .DESCRIPTION
+        This function uses the .NET SqlClient to connect to a given SQL Server and run a non-query command.
+        The connection to the server can either use integrated security (current user) or SQL authentication
+        given a username and password.
     .PARAMETER Server
         The name of the SQL Server to connect to.
     .PARAMETER Database
@@ -586,8 +596,14 @@ function Initialize-AzureDisks {
         The valid T-SQL command to run as a string.
     .PARAMETER Timeout
         (Optional) The query timeout value to pass to the server, default value is 0 (unlimited).
+    .INPUTS
+        System.String
+        System.Int32
+        System.Security.SecureString
+    .OUTPUTS
+        System.Int32
 #>
-function Invoke-SqlCommand() {
+function Invoke-SqlCmdNet() {
     [cmdletbinding(DefaultParameterSetName = 'Integrated')]
     param (
         [Parameter(Mandatory = $true)]
@@ -625,7 +641,7 @@ function Invoke-SqlCommand() {
 
         [Parameter(Mandatory = $false)]
         [int]
-        $Timeout=0
+        $Timeout = 0
     )
 
     # Build connection string
@@ -655,8 +671,101 @@ function Invoke-SqlCommand() {
             "Exception occurred running a SQL command: $($PSItem.Exception.Message)" `
             -Severity 3
     }
+    finally {
+        $Cnn.Close()
+    }
 
-    $Cnn.Close()
+    return $Result
+}
+
+<#
+    .SYNOPSIS
+        Performs a non-query SQL command using SQLCMD.exe and returns the result
+    .DESCRIPTION
+        This function uses the SQLCMD.exe command-line tool to connect to a given SQL Server and run a non-
+        query command. The connection to the server must use integrated security but a PSCredential can be
+        passed to specify the user account to 'run-as'.
+    .PARAMETER Server
+        The name of the SQL Server to connect to.
+    .PARAMETER Database
+        The name of the database to run the command against.
+    .PARAMETER Query
+        The valid T-SQL command to run as a string.
+    .PARAMETER Credential
+        (Optional) A PSCredential object to be used for the server connection, if not specified the logged in
+        credentials will be used.
+    .PARAMETER Timeout
+        (Optional) The query timeout value to pass to the server, default value is 0 (unlimited).
+    .INPUTS
+        System.String
+        System.Int32
+        System.Management.Automation.PSCredential
+    .OUTPUTS
+        System.Diagnostics.Process
+#>
+function Invoke-SqlCmdExe {
+    [cmdletbinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [Alias('ServerInstance')]
+        [string]
+        $Server,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Database,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Query,
+        
+        [Parameter(Mandatory = $false)]
+        [PSCredential]
+        $Credential,
+
+        [Parameter(Mandatory = $false)]
+        [int]
+        $Timeout = 0
+    )
+
+    # Array of common options for SQLCMD.exe
+    $SQLCmdOps = @(
+        "-S $Server",
+        "-d $Database",
+        "-Q `"$Query`""
+    )
+
+    # Add timeout option if specified
+    if ($Timeout -gt 0) {
+        $SQLCmdOps += "-t $Timeout"
+    }
+
+    # Hashtable of args for the process to be created
+    $ProcArgs = @{
+        FilePath = 'SQLCMD.exe'
+        ArgumentList = $SQLCmdOps
+        RedirectStandardOutput = "$LogPath\sqlcmd.txt"
+        Wait = $true
+        PassThru = $true
+    }
+
+    if ($Credential) {
+        # Add the credential to the arg list
+        $ProcArgs['Credential'] = $Credential 
+    }
+
+    # Run SQLCMD.exe with given parameters as a process
+    try {
+        $Result = Start-Process @ProcArgs
+    }
+    catch {
+        Write-LogInfo -Message `
+            "Exception occurred running a SQL command: $($PSItem.Exception.Message)" `
+            -Severity 3
+    }
 
     return $Result
 }
@@ -818,15 +927,48 @@ function Install-CMPrimarySite {
         MAXSIZE = $($Control.SQLCMDBLogFileSize),
         FILEGROWTH = $($Control.SQLCMDBLogFileGrw))"
 
+    # Write out the full T-SQL statement
     Write-LogInfo -Message "Create DB command will be:" -Severity 1
     Write-LogInfo -Message "$SQLCreateDBCmd" -Severity 1
 
-    # Run the create database query statement
-    $SQLCreateDBResult = Invoke-SqlCommand -Server $SQLFQDN `
-        -Database 'master' `
-        -UseWindowsAuth `
-        -Query $SQLCreateDBCmd
-    Write-LogInfo -Message "Create DB command result was: $SQLCreateDBResult" -Severity 1
+    # Set PSCredential object to 'Empty' credential - will be used later to initiate the MECM install but may
+    # be overwritten in the next section if this code is running in SYSTEM context.
+    $CMAdmCred = [System.Management.Automation.PSCredential]::Empty
+
+    # Check user context - if we are running as SYSTEM we will have to run the T-SQL command as a user
+    # because SYSTEM does not have permissions to create databases by default.
+    if ([Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) {
+        # Attempt to read in admin password (should have been passed in via the bootstrap script) from file
+        if (Test-Path "$PSScriptRoot\admin.txt") {
+            $CMAdmPw = Get-Content -Path "$PSScriptRoot\admin.txt" |
+                ConvertTo-SecureString
+            Write-LogInfo -Message "Retrived encrypted CM admin password from file" -Severity 1
+        }
+        else {
+            Write-LogInfo -Message "Cannot find encrypted CM admin password file" -Severity 3
+        }
+
+        # Create a PSCredential object from the above password and account specified in control
+        $CMAdmCred = New-Object System.Management.Automation.PSCredential($Control.CMAdminAc, $CMAdmPw)
+
+        # Run the SQL command that was built above using the Invoke-SqlCmdExe function which allows us to
+        # pass credentials in because it executes commands using SQLCMD.exe in a separate process.
+        $SQLCreateDBResult = Invoke-SqlCmdExe -Server $SQLFQDN `
+            -Database 'master' `
+            -Query $SQLCreateDBCmd `
+            -Credential $CMAdmCred
+        Write-LogInfo -Message `
+            "Create DB command (SQLCMD.exe process) result was: $SQLCreateDBResult" `
+            -Severity 1
+    }
+    else {
+        # Run the SQL command using .NET SqlClient in current user context using the Invoke-SqlCmdNet function
+        $SQLCreateDBResult = Invoke-SqlCmdNet -Server $SQLFQDN `
+            -Database 'master' `
+            -UseWindowsAuth `
+            -Query $SQLCreateDBCmd
+        Write-LogInfo -Message "Create DB command (SqlClient) result was: $SQLCreateDBResult" -Severity 1
+    }
 
     # Set the ini file options - first get the file contents
     $CMIni = Get-Content -Path $CMScriptPath
@@ -877,7 +1019,11 @@ function Install-CMPrimarySite {
     # Run the MECM installer
     Write-LogInfo -Message 'Run MECM command line install...' -Severity 1
     Write-LogInfo -Message "${CMSetupPath} ${CMOps}" -Severity 1 -BlankLine
-    $CMResult = Start-Process -FilePath "$CMSetupPath" -ArgumentList $CMOps -Wait -PassThru
+    $CMResult = Start-Process -FilePath "$CMSetupPath" `
+        -ArgumentList $CMOps `
+        -Credential $CMAdmCred `
+        -Wait `
+        -PassThru
     Write-LogInfo -Message "MECM install exit code: $($CMResult.ExitCode)" -Severity 1
     Write-LogInfo -Message 'MECM install completed' -Severity 1
 
@@ -954,6 +1100,7 @@ function Add-InstallTask {
         $TaskDescription = 'MECM install task'
     )
 
+    Initialize-Session
     Write-LogInfo -Message 'Start adding an install task...' -Severity 1 -BlankLine
 
     # Create a task folder, if it doesn't already exist
@@ -1054,6 +1201,7 @@ function Install-MECM {
     )
 
     # Start message
+    Initialize-Session
     Write-LogInfo -Message 'Start proccessing MECM install actions...' -Severity 1
     Write-LogInfo -Message "Install-MECM mode is: $Mode" -Severity 1 -BlankLine
 
@@ -1121,22 +1269,38 @@ function Install-MECM {
         return
     }
 
-    # If we're still running here, it must be 'Full' mode
+    # If we're still running here, it must be 'Full' mode - we now need to reboot and run the last bits of
+    # the install - 'CMOnly' mode.
 
-    # Add a task to run the CM Site install
-    $ScriptCmd = "& {Import-Module '${PSScriptRoot}\Ensono.MECM.psd1'; Install-MECM -Mode CMOnly}"
-    Add-InstallTask -TaskName 'Start-CMProvisioning-T2' `
-        -DelayedTask `
-        -DelayMinutes 15 `
-        -ActionArgument "-Command $ScriptCmd" `
-        -TaskDescription 'Installs MECM - phase 2 - MECM primary site'
+    # Check user context - if we are running as SYSTEM it must be fully non-interactive scenario so set up a
+    # scheduled task to continue and restart, otherwise tell the user to do so manually.
+    if ([Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) {
+        # Add a task to run the CM Site install
+        $ScriptCmd = "& {Import-Module '${PSScriptRoot}\Ensono.MECM.psd1'; Install-MECM -Mode CMOnly}"
+        Add-InstallTask -TaskName 'Start-CMProvisioning-T2' `
+            -DelayedTask `
+            -DelayMinutes 10 `
+            -ActionArgument "-Command $ScriptCmd" `
+            -TaskDescription 'Installs MECM - phase 2 - MECM primary site'
+        Write-LogInfo -Message 'Pre-requisite phase complete, T2 task will run in 10 minutes' -Severity 1
 
-    # A small pause before restarting
-    Write-LogInfo -Message 'Pausing for 30 seconds...' -Severity 1
-    Start-Sleep -Seconds 30
+        # A small pause before restarting
+        Write-LogInfo -Message 'Pausing for 30 seconds...' -Severity 1
+        Start-Sleep -Seconds 30
 
-    # Reboot because all the pre-reqs, SQL etc
-    Restart-Computer -Force
+        # Reboot because all the pre-reqs, SQL etc
+        Write-LogInfo -Message 'Restarting local machine...' -Severity 1
+        Restart-Computer -Force
+    }
+    else {
+        # Output information to the user, await ENTER key press to restart
+        Write-LogInfo -Message 'Pre-requisite phase complete' -Severity 1
+        Write-LogInfo -Message 'Script is running interactively' -Severity 1
+        Write-LogInfo -Message 'The system now needs to restart, once done, please log in again' -Severity 1
+        Write-LogInfo -Message 'Run ''Install-MECM -Mode CMOnly'' to complete the install' -Severity 1
+        Read-Host -Prompt 'Press ENTER to restart...'
+        Restart-Computer -Force
+    }
 }
 
 <#
@@ -1151,6 +1315,8 @@ function Install-MECM {
 function Initialize-VMDisks {
     [cmdletbinding()]
     param ()
+
+    Initialize-Session
 
     # Where 'AzureVM' is true do the disk initialization, formatting etc
     if ($Control.AzureVM) {
@@ -1180,6 +1346,7 @@ function Install-PreReqADK {
         $InstallDrive = $Control.InstallDrive
     )
 
+    Initialize-Session
     Write-LogInfo -Message 'Start installing Windows ADK...' -Severity 1 -BlankLine
 
     # Do ADK install
@@ -1207,6 +1374,7 @@ function Install-PreReqFeatures {
     )
 
     # Introduction
+    Initialize-Session
     Write-LogInfo -Message 'Start installing Windows pre-requisite features...' -Severity 1 -BlankLine
 
     # Install primary features if All or Primary
@@ -1265,6 +1433,7 @@ function Install-SMSFiles {
     param ()
 
     # Create no_sms_on_drive.sms files
+    Initialize-Session
     Write-LogInfo -Message 'Start adding no_sms_on_drive.sms file to local drives...' -Severity 1 -BlankLine
 
     # Get local fixed drives
@@ -1319,6 +1488,7 @@ function Install-SQLServer {
         $SqlVersion = 0
     )
 
+    Initialize-Session
     Write-LogInfo -Message 'Start installing SQL Server locally...' -Severity 1 -BlankLine
 
     # Where SqlVersion is default value 0, set this parameter from Control
@@ -1375,8 +1545,9 @@ function Install-SQLServer {
     $SQLOpInstNm = '/INSTANCENAME=MSSQLSERVER'
     $SQLOpCollatn = '/SQLCOLLATION="SQL_Latin1_General_CP1_CI_AS"'
     $SQLOpInstDir = "/INSTANCEDIR=`"$($Control.InstallDrive)\Program Files\Microsoft SQL Server`""
-    $SQLOpDataDir = "/INSTALLSQLDATADIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
-    $SQLOpLogDir = "/SQLUSERDBLOGDIR=`"$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
+    $SQLOpDataDir = "/INSTALLSQLDATADIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server`""
+    $SQLOpUsDataDir = "/SQLUSERDBDIR=`"$($Control.SQLDrData)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
+    $SQLOpUsLogDir = "/SQLUSERDBLOGDIR=`"$($Control.SQLDrLog)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\DATA`""
     $SQLOpTmpDir = "/SQLTEMPDBDIR=`"$SQLTempLoc`""
     $SQLOpTmpLgDir = "/SQLTEMPDBLOGDIR=`"$SQLTempLoc`""
     $SQLOpBkupDir = "/SQLBACKUPDIR=`"$($Control.SQLDrBkup)\Program Files\Microsoft SQL Server\$SQLVerInstDir\MSSQL\Backup`""
@@ -1387,8 +1558,8 @@ function Install-SQLServer {
 
     # Create an array to hold all the parameters
     $SQLOps = @($SQLOpQ, $SQLOpLic, $SQLOpUpdSrc, $SQLOpAct, $SQLOpProgress, $SQLOpFeat, $SQLOpInstNm,
-        $SQLOpCollatn, $SQLOpInstDir, $SQLOpDataDir, $SQLOpLogDir, $SQLOpTmpDir, $SQLOpTmpLgDir,
-        $SQLOpBkupDir, $SQLOpSAAccts)
+        $SQLOpCollatn, $SQLOpInstDir, $SQLOpDataDir, $SQLOpUsDataDir, $SQLOpUsLogDir, $SQLOpTmpDir,
+        $SQLOpTmpLgDir, $SQLOpBkupDir, $SQLOpSAAccts)
 
     # Build command line parameters for SQL service accounts
     if ($SQLSvEngAc -ne '') {
@@ -1502,6 +1673,7 @@ function Install-SQLTools {
     )
 
     # Start management tools processing
+    Initialize-Session
     Write-LogInfo 'Install SQL Server management tools...' -Severity 1 -BlankLine
 
     # Make sure drive parameter is correctly formatted
