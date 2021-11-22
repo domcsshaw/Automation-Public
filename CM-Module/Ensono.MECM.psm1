@@ -545,7 +545,7 @@ function Initialize-AzureDisks {
                 'DriveLetter' = $Vol.Letter
             }
             if ($Vol.Size -ne '0') {
-                # / 1 here 'forces' the type conversion - string to UInt64 (.NET does not understand the
+                # / 1 here 'forces' the type conversion - string to UInt64 (.Net does not understand the
                 # PS-native xKB, xMB, xGB syntax)
                 [UInt64]$VolumeSize = ($Vol.Size / 1)
                 $VolParams.Add('Size', $VolumeSize)
@@ -576,9 +576,9 @@ function Initialize-AzureDisks {
 
 <#
     .SYNOPSIS
-        Performs a non-query SQL command using the .NET SqlClient and returns the result
+        Performs a non-query SQL command using the .Net SqlClient and returns the result
     .DESCRIPTION
-        This function uses the .NET SqlClient to connect to a given SQL Server and run a non-query command.
+        This function uses the .Net SqlClient to connect to a given SQL Server and run a non-query command.
         The connection to the server can either use integrated security (current user) or SQL authentication
         given a username and password.
     .PARAMETER Server
@@ -938,6 +938,7 @@ function Install-CMPrimarySite {
     # Check user context - if we are running as SYSTEM we will have to run the T-SQL command as a user
     # because SYSTEM does not have permissions to create databases by default.
     if ([Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) {
+        Write-LogInfo -Message 'Process is running under SYSTEM account' -Severity 1
         # Attempt to read in admin password (should have been passed in via the bootstrap script) from file
         if (Test-Path "$PSScriptRoot\admin.txt") {
             $CMAdmPw = Get-Content -Path "$PSScriptRoot\admin.txt" |
@@ -953,6 +954,7 @@ function Install-CMPrimarySite {
 
         # Run the SQL command that was built above using the Invoke-SqlCmdExe function which allows us to
         # pass credentials in because it executes commands using SQLCMD.exe in a separate process.
+        Write-LogInfo -Message 'Running create DB command using SQLCMD.exe' -Severity 1
         $SQLCreateDBResult = Invoke-SqlCmdExe -Server $SQLFQDN `
             -Database 'master' `
             -Query $SQLCreateDBCmd `
@@ -962,7 +964,8 @@ function Install-CMPrimarySite {
             -Severity 1
     }
     else {
-        # Run the SQL command using .NET SqlClient in current user context using the Invoke-SqlCmdNet function
+        # Run the SQL command using .Net SqlClient in current user context using the Invoke-SqlCmdNet function
+        Write-LogInfo -Message 'Running create DB command using .Net SqlClient' -Severity 1
         $SQLCreateDBResult = Invoke-SqlCmdNet -Server $SQLFQDN `
             -Database 'master' `
             -UseWindowsAuth `
