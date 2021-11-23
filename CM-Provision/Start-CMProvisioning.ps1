@@ -6,7 +6,14 @@
         MECM on a virtual machine. First downloads a set of source files and the Ensono.MECM PowerShell
         module, imports that module and invokes the installation from it.
     .PARAMETER SourceURL
-        (Optional) The URL to download a zip file that contains the content and scripts required for the install.
+        (Optional) The URL to download a zip file that contains the content and scripts required for the
+        install.
+    .PARAMETER ModuleURL
+        (Optional) The URL to download updated versions of the PS module files.
+    .PARAMETER ControlURL
+        (Optional) The URL to download the correct control file, works in conjunction with the EnvironmentRef.
+    .PARAMETER EnvironmentRef
+        (Optional) 
     .PARAMETER LocalPath
         (Optional) The local folder path to sync the source files to for install, defaults to C:\CM-Install.
 #>
@@ -62,7 +69,7 @@ if ($EnvironmentRef) {
     Invoke-WebRequest -Uri "${ControlURL}/${EnvironmentRef}/control.json" -OutFile "$LocalPath\Module\control.json"
 }
 
-# Write out the admin password (encrypted) that has been passed in - we need this for later
+# Write out the admin password (encrypted) - we need this for later
 $AdminPassword | ConvertFrom-SecureString | Set-Content -Path "$LocalPath\Module\admin.txt"
 
 # Import the MECM module
