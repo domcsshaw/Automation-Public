@@ -407,7 +407,7 @@
     {
       "apiVersion": "2018-11-01",
       "type": "Microsoft.Network/networkInterfaces",
-      "name": "[concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '_NIC1')]",
+      "name": "[concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '-NIC')]",
       "location": "[parameters('location')]",
       "tags": "[parameters('networkInterfaceTags')]",
       "copy": {
@@ -445,7 +445,7 @@
         "count": "[parameters('rdshNumberOfInstances')]"
       },
       "dependsOn": [
-        "[concat('Microsoft.Network/networkInterfaces/', parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '_NIC1')]"
+        "[concat('Microsoft.Network/networkInterfaces/', parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '-NIC')]"
       ],
       "identity": "[variables('vmIdentity')]",
       "properties": {
@@ -460,7 +460,7 @@
         },
         "storageProfile": {
           "osDisk": {
-            "name": "[concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '_OSDISK')]",
+            "name": "[concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '-OSDisk')]",
             "createOption": "FromImage",
             "managedDisk": {
               "storageAccountType": "[variables('storageAccountType')]"
@@ -473,7 +473,7 @@
         "networkProfile": {
           "networkInterfaces": [
             {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '_NIC1'))]"
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('rdshPrefix'), add(copyindex(), parameters('vmInitialNumber')), '-NIC'))]"
             }
           ]
         },
