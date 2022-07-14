@@ -8,7 +8,7 @@ param (
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string[]]
-    $ContentFiles = 'LangContent-en-gb',
+    $ContentFiles = @('LangContent-en-gb'),
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
@@ -31,9 +31,21 @@ if (!(Test-Path -Path "$CacheFolder\Logs")) {
 # Start transcript and keep history
 Start-Transcript -Path "$CacheFolder\Logs\Install-LangContent.log" -Append
 
-# Disable language pack cleanup task
+# Edit files list for Windows 11
+if ((Get-ComputerInfo).OsBuildNumber -gt 20000) {
+    $ContentFiles = @('LangContent-w11-en-gb')
+    Write-Host "Windows 11 detected, file to download changed"
+}
+
+# Disable language pack cleanup tasks
 Write-Host "Disabling language pack cleanup task"
 Disable-ScheduledTask -TaskPath "\Microsoft\Windows\AppxDeploymentClient\" -TaskName "Pre-staged app cleanup"
+Write-Host "Disabling MUI LP remove task"
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MUI\" -TaskName "LPRemove"
+Write-Host "Disabling language uninstallation task"
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\LanguageComponentsInstaller" -TaskName "Uninstallation"
+Write-Host "Adding 'BlockCleanupOfUnusedPreinstalledLangPacks' registry key"
+reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International" /v "BlockCleanupOfUnusedPreinstalledLangPacks" /t REG_DWORD /d 1 /f
 
 # Download and process lnaguage content
 foreach ($File in $ContentFiles) {
