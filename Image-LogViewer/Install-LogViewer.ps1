@@ -2,7 +2,7 @@ param (
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
-    $ContentRoot = 'https://dsstorinfgen.blob.core.windows.net/imagecontent/',
+    $ContentRoot = 'https://dsstorensgen.blob.core.windows.net/imagecontent/',
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]

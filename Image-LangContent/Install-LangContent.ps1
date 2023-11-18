@@ -3,7 +3,7 @@ param (
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]
-    $ContentRoot = 'https://dsstorinfgen.blob.core.windows.net/imagecontent/',
+    $ContentRoot = 'https://dsstorensgen.blob.core.windows.net/imagecontent/',
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
@@ -32,9 +32,13 @@ if (!(Test-Path -Path "$CacheFolder\Logs")) {
 Start-Transcript -Path "$CacheFolder\Logs\Install-LangContent.log" -Append
 
 # Edit files list for Windows 11
-if ((Get-ComputerInfo).OsBuildNumber -gt 20000) {
-    $ContentFiles = @('LangContent-w11-en-gb')
-    Write-Host "Windows 11 detected, file to download changed"
+if ((Get-ComputerInfo).OsBuildNumber -eq 22621) {
+    $ContentFiles = @('LangContent-w11-22h2-en-gb')
+    Write-Host "Windows 11 (22H2) detected, file to download changed"
+}
+if ((Get-ComputerInfo).OsBuildNumber -eq 23000) {
+    $ContentFiles = @('LangContent-w11-23h2-en-gb')
+    Write-Host "Windows 11 (23H2) detected, file to download changed"
 }
 
 # Disable language pack cleanup tasks
