@@ -2,16 +2,22 @@
 param (
     [Parameter(Mandatory=$false, HelpMessage="Specify files name with the appx packages to be removed.")]
     [ValidateNotNullOrEmpty()]
-    [string[]]$AppsToRemove = @('Microsoft.XboxGameOverlay', 
+    [string[]]$AppsToRemove = @(
+        'Microsoft.BingNews',
+        'Microsoft.BingWeather',
+        'Microsoft.XboxGameOverlay', 
         'Microsoft.XboxGamingOverlay',
         'Microsoft.XboxIdentityProvider',
+        'Microsoft.XboxSpeechToTextOverlay',
         'Microsoft.XboxApp',
         'Microsoft.Xbox.TCUI',
+        'Microsoft.GamingApp',
         'Microsoft.MicrosoftSolitaireCollection',
         'Microsoft.SkypeApp',
         'Microsoft.People',
         'Microsoft.ZuneMusic',
-        'microsoft.windowscommunicationsapps'),
+        'microsoft.windowscommunicationsapps'
+    ),
     
     [Parameter(Mandatory=$false, HelpMessage='The local (ProgramData) folder for downloads and logs.')]
     [ValidateNotNullOrEmpty()]

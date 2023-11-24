@@ -61,7 +61,7 @@ foreach ($File in $ContentFiles) {
 
     # Extract file
     Write-Host "Extracting file: ${File}.zip"
-    Expand-Archive -Path "${CacheFolder}\${File}.zip" -DestinationPath "$CacheFolder"
+    Expand-Archive -Path "${CacheFolder}\${File}.zip" -DestinationPath "$CacheFolder\${File}"
     Write-Host "File extracted to: ${CacheFolder}\${File}\"
 
     # Attempt to install LXPs from any sub-directories
